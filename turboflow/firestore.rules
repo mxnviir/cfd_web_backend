@@ -1,0 +1,427 @@
+rules_version = '2';
+
+// TurboFlow Firestore rules.
+//
+// The guiding rule: anything that decides money is written by the backend and
+// denied to clients here. The old rules let a client create its own account
+// document claiming 50 credits, and let it create a job carrying its own `cost`
+// — which refundJob then paid out. Both are now server-only.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Bounds on the free text a client controls.
+    //
+    // Ported from the 0020_length_limits migration, whose limits were measured
+    // against the real data rather than guessed: the longest storage path in
+    // the imported history is 59 characters and a new one is about 93, and the
+    // longest team name is 20. Without these a client can put a megabyte of
+    // text in a name — a document costs the same to store either way, and
+    // every reader pays to download it.
+    //
+    // `error` and `paraview_url` are deliberately unbounded: the worker writes
+    // them with the Admin SDK, and a limit that rejected a long traceback would
+    // stop a failing job from ever being marked failed.
+    function textOk(v, max) {
+      return v == null || (v is string && v.size() <= max);
+    }
+
+    // Firestore rules cannot measure a map's serialised size, only how many
+    // keys it has. The 1 MiB document limit is the real backstop; this stops
+    // the obvious abuse.
+    function mapOk(v, maxKeys) {
+      return v == null || (v is map && v.keys().size() <= maxKeys);
+    }
+
+    function changed() {
+      return incoming().diff(resource.data).affectedKeys();
+    }
+
+    // The Fusion add-in writes camelCase, the Workbench writes snake_case, and
+    // onJobPending folds the former into the latter. Ownership has to be
+    // checkable before that runs, so both spellings are accepted here.
+    function jobOwnerField() {
+      return incoming().get('user_id', incoming().get('userId', ''));
+    }
+
+    // A storage path a client is allowed to name.
+    //
+    // Without this a client could create a job whose step_path pointed into
+    // another team's group. The worker runs as admin and would happily
+    // download it, handing the attacker a competitor's car geometry through
+    // their own run. Paths must sit under the caller's own prefix.
+    //
+    // The legacy jobs/ prefix stays allowed because installed Fusion add-ins
+    // write it. Job ids there are random v4 UUIDs, so it is not enumerable.
+    // A group the caller owns, or one shared with them at least this far.
+    // Sharing is a map of uid to permission on the group document, so the
+    // check is a single get() and Firestore caches it for the rest of the
+    // rule evaluation.
+    function groupDoc(gid) {
+      return get(/databases/$(database)/documents/groups/$(gid)).data;
+    }
+    function ownsGroup(gid) {
+      return signedIn() && groupDoc(gid).user_id == request.auth.uid;
+    }
+    function sharedWith(gid) {
+      return signedIn() && groupDoc(gid).get('shared_with', {}).keys().hasAny([request.auth.uid]);
+    }
+    function memberOf(gid) {
+      // exists() before get(): a query naming a group that is not there
+      // would otherwise fail with "Null value error" rather than a plain
+      // denial, and an error in a rule is indistinguishable from a bug in it.
+      // Both calls hit the same document, so this costs no extra read.
+      return exists(/databases/$(database)/documents/groups/$(gid))
+        && (ownsGroup(gid) || sharedWith(gid));
+    }
+
+    /**
+     * The one shape every group-scoped list rule uses.
+     *
+     * A list rule is not evaluated against the documents it would return. It
+     * is evaluated once, against a document that has only the fields the
+     * query constrains with equality, and any other field read comes back
+     * undefined. Reading one is an error, and an error in either half of an
+     * || fails the whole rule, so both halves here use get() with a default.
+     *
+     * That is why a rule reading resource.data.user_id refuses a query
+     * filtered by group_id even when every document it would return belongs
+     * to the caller: the rule cannot see user_id, so it cannot prove anything.
+     * It is also why this works for both query shapes. Filtered by user_id,
+     * the first half resolves and short-circuits. Filtered by group_id, the
+     * first half is safely false and the second half resolves.
+     *
+     * Found by watching the Workbench show an empty tree over a group that
+     * had a car in it, with nothing in the console to say why.
+     */
+    function canList(readerField) {
+      return signedIn() && (
+        readerField == request.auth.uid
+        || (resource.data.get('group_id', null) != null
+            && memberOf(resource.data.group_id)));
+    }
+
+    function canEditGroup(gid) {
+      return ownsGroup(gid)
+        || (signedIn() && groupDoc(gid).get('shared_with', {}).get(request.auth.uid, '') == 'edit');
+    }
+
+    // A person, not a Fusion connection token.
+    //
+    // The `fusion` claim marks a session minted from a connection token pasted
+    // into a desktop add-in. Those are meant to be worth less than a password:
+    // revocable, and limited to what a script needs. Until now the claim was
+    // checked in exactly three places - this file's profile update, and the two
+    // PayPal callables - so a leaked token could delete every group, geometry
+    // and simulation on the account. Submitting runs is what it is for;
+    // deleting things is not.
+    function human() {
+      return signedIn() && request.auth.token.get('fusion', false) != true;
+    }
+
+    // The storage path a job may name, bound to the job naming it.
+    //
+    // This used to accept `jobs/<anything>/<anything>`, with no uid and no job
+    // id in it, on the grounds that job ids are unguessable v4 UUIDs. That is
+    // true and it is not the same as a check. The worker has always required
+    // `users/<owner>/` or `jobs/<this job>/` (owned_path in simscale_job.py);
+    // this now says the same thing, so the two locks agree rather than one
+    // carrying the other.
+    function ownJobPath(p, jobId) {
+      return p == null
+        || (p is string && (
+             p.matches('^users/' + request.auth.uid + '/geometries/[^/]+/[^/]+$')
+             || p.matches('^jobs/' + jobId + '/[^/]+$')
+           ));
+    }
+
+    function ownPath(p) {
+      return p == null
+        || (p is string && (
+             p.matches('^users/' + request.auth.uid + '/geometries/[^/]+/[^/]+$')
+             || p.matches('^jobs/[^/]+/[^/]+$')
+           ));
+    }
+
+    // ── accounts ──────────────────────────────────────────────────────────
+    // Create is denied outright. A client cannot be asked "is this your first
+    // account?", so the 50-credit signup bonus was farmable while the client
+    // wrote this document. onUserCreate writes it now, as part of sign-up.
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if false;
+      allow delete: if false;
+
+      // Profile fields only. Everything to do with money or entitlement is
+      // absent from this list, so a client cannot touch it at all.
+      allow update: if isOwner(uid)
+        && request.auth.token.get('fusion', false) != true
+        && changed().hasOnly([
+          'name', 'team_name', 'region', 'contact_email',
+          'lap_calc_defaults', 'job_race_times', 'last_seen',
+          // The numbers the Set-up dialog starts from: air speed, iterations,
+          // tunnel offsets, wheel radius. A preference, not an entitlement —
+          // the server clamps every one of them again in prepareDomain, so
+          // nothing here can buy a bigger run than it pays for.
+          'workbench_defaults'
+        ])
+        && (!('last_seen' in changed()) || incoming().last_seen == request.time)
+        && textOk(incoming().get('name', null), 200)
+        && textOk(incoming().get('team_name', null), 200)
+        && textOk(incoming().get('region', null), 200)
+        && textOk(incoming().get('contact_email', null), 320)
+        && mapOk(incoming().get('lap_calc_defaults', null), 50)
+        && mapOk(incoming().get('job_race_times', null), 500)
+        && mapOk(incoming().get('workbench_defaults', null), 50);
+
+      // The ledger. refundJob derives what it pays out from these rows, so a
+      // client being able to write one would recreate the vulnerability this
+      // whole design exists to close.
+      match /transactions/{transactionId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // ── jobs ──────────────────────────────────────────────────────────────
+    match /jobs/{jobId} {
+      allow get: if signedIn() && resource.data.get('user_id', resource.data.get('userId', '')) == request.auth.uid;
+
+      // Listing is allowed only for a query Firestore can prove is restricted to
+      // the caller's own rows — in practice, one carrying
+      // where('user_id', '==', uid). An unfiltered read of the collection is
+      // rejected, so this cannot be used to enumerate other people's runs.
+      allow list: if signedIn() && resource.data.user_id == request.auth.uid;
+
+      // The Fusion add-in creates its job document directly, so create stays
+      // open — but only for a job that belongs to the caller, starts in a state
+      // that has not been paid for, and, critically, does not carry a price.
+      //
+      // `cost` is written by onJobPending from the server-side formula. A job
+      // that arrives carrying one is rejected here, which is the first of the
+      // two locks on the refund vulnerability; the ledger is the second.
+      allow create: if signedIn()
+        && jobOwnerField() == request.auth.uid
+        && incoming().status in ['pending', 'draft']
+        && !('cost' in incoming())
+        && !('charged_at' in incoming())
+        && ownJobPath(incoming().get('step_path', incoming().get('stepPath', null)), jobId)
+        && ownJobPath(incoming().get('label_path', incoming().get('labelPath', null)), jobId)
+        && textOk(incoming().get('file_name', incoming().get('fileName', null)), 200)
+        && textOk(incoming().get('team_name', incoming().get('teamName', null)), 200)
+        && textOk(incoming().get('part', null), 200)
+        && mapOk(incoming().get('setup_snapshot', null), 200);
+
+      // Status transitions are the backend's and the worker's, both of which
+      // use the Admin SDK and bypass rules. A client asks for a change by
+      // calling startJob or refundJob.
+      allow update, delete: if false;
+    }
+
+    // ── groups ────────────────────────────────────────────────────────────
+    //
+    // One container, replacing projects and folders both. A group holds as
+    // many simulations as the owner likes; nothing holds groups.
+    match /groups/{groupId} {
+      // Read is the owner or anyone the group was shared with. Everything
+      // that writes is the owner alone, and the callables in
+      // functions/src/groups do the rest with admin credentials, which is
+      // why shared_with itself is not client-writable: a collaborator being
+      // able to promote themselves to "edit" would make sharing meaningless.
+      allow read: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || resource.data.get('shared_with', {}).keys().hasAny([request.auth.uid]));
+      allow delete: if human() && resource.data.user_id == request.auth.uid;
+      allow create: if signedIn()
+        && incoming().user_id == request.auth.uid
+        && textOk(incoming().get('name', null), 200)
+        && textOk(incoming().get('description', null), 2000);
+      allow update: if signedIn()
+        && resource.data.user_id == request.auth.uid
+        && incoming().user_id == resource.data.user_id
+        && !changed().hasAny(['shared_with', 'shared_emails', 'counts'])
+        && textOk(incoming().get('name', null), 200)
+        && textOk(incoming().get('description', null), 2000);
+    }
+
+    // ── runs ──────────────────────────────────────────────────────────────
+    // Written only by the worker and the functions, both on admin credentials.
+    // A client that could write a run could write its own status and summary,
+    // which is to say it could claim a result it never paid for.
+    match /runs/{runId} {
+      allow get: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || (resource.data.get('group_id', null) != null
+                && memberOf(resource.data.group_id)));
+      allow list: if canList(resource.data.get('user_id', ''));
+      allow create, update, delete: if false;
+
+      // Post-processing state is the user's own view of a result: which
+      // filters, what colour range, where the camera is. Theirs to write.
+      match /post_states/{stateId} {
+        // Bounded, like every other client-written document here. This one had
+        // no limit at all, so a run's post-processing state was somewhere to
+        // put a megabyte of anything and have it billed as Firestore.
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/runs/$(runId)).data.user_id == request.auth.uid;
+        allow write: if signedIn()
+          && get(/databases/$(database)/documents/runs/$(runId)).data.user_id == request.auth.uid
+          && (request.method == 'delete' || mapOk(incoming(), 60));
+      }
+    }
+
+    // The Workbench uploads the STEP first and writes this document after, so
+    // create is open to the owner — but only pointing at paths under their own
+    // prefix. createUploadIntent does the same thing server-side for callers
+    // that would rather have the id minted for them.
+    match /geometries/{geometryId} {
+      // The owner, or a collaborator on the group this geometry belongs to.
+      // get and list are separate because a list rule sees only the fields the
+      // query filters on; see canList above.
+      allow get: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || (resource.data.get('group_id', null) != null
+                && memberOf(resource.data.group_id)));
+      allow list: if canList(resource.data.get('user_id', ''));
+      allow delete: if human() && resource.data.user_id == request.auth.uid;
+
+      // group_id has to be a group the caller is actually in.
+      //
+      // Nothing checked it, here or in createUploadIntent, while
+      // createSimulation had checked it all along. Because the list rules let a
+      // group member read anything carrying their group_id, a stranger who
+      // learned a group id - from a shared link, a screenshot, a former
+      // collaborator - could put a car with a name of their choosing into
+      // somebody else's Workbench.
+      allow create: if signedIn()
+        && incoming().user_id == request.auth.uid
+        && (incoming().get('group_id', null) == null
+            || memberOf(incoming().group_id))
+        && ownPath(incoming().get('step_path', null))
+        && ownPath(incoming().get('label_path', null))
+        && textOk(incoming().get('name', null), 200)
+        && textOk(incoming().get('glb_path', null), 400)
+        // Which route built this flow region. A tunnel the Workbench built
+        // around a raw car and one the Fusion add-in shipped whole are not the
+        // same thing, and support cannot tell them apart without this. Set at
+        // create only: the update list below does not include it, so it cannot
+        // be rewritten later to claim a provenance it never had.
+        && incoming().get('prepared_by', 'fusion') in ['workbench', 'fusion']
+        && ownPath(incoming().get('source_step_path', null));
+
+      // The tessellation service fills in the mesh stats and the GLB path.
+      // Ownership and the STEP path itself cannot be edited afterwards — a run
+      // must keep pointing at the bytes it actually ran on.
+      allow update: if signedIn()
+        && resource.data.user_id == request.auth.uid
+        // status, versions, current_version and error say what the geometry
+        // service found and what state the pipeline is in. A client that
+        // could set them could claim a geometry is ready when nothing has
+        // been tessellated, and the worker would then run on nothing.
+        && changed().hasOnly([
+             'name', 'description', 'glb_path', 'bbox',
+             'face_count', 'solid_count', 'triangle_count', 'wheel_count'
+           ])
+        && !changed().hasAny(['status', 'versions', 'current_version', 'error'])
+        && textOk(incoming().get('name', null), 200)
+        && textOk(incoming().get('description', null), 2000)
+        && textOk(incoming().get('glb_path', null), 400)
+        && mapOk(incoming().get('bbox', null), 20);
+
+      // Saved selections: a named list of face ids, the user's own working
+      // notes about their car. Capped so one cannot be used as free storage.
+      match /selections/{selectionId} {
+        allow read, write: if signedIn()
+          && get(/databases/$(database)/documents/geometries/$(geometryId)).data.user_id == request.auth.uid
+          && (request.method == 'delete'
+              || (textOk(incoming().get('name', null), 200)
+                  && incoming().get('entity_type', 'face') in ['face', 'solid']
+                  && incoming().get('step_ids', []).size() <= 5000));
+      }
+    }
+
+    // Simulation setups carry no money and no storage paths, so the owner edits
+    // them directly. The snapshot that matters for billing is copied onto the
+    // job at submit time and is not editable afterwards.
+    match /simulations/{simulationId} {
+      // The owner, or a collaborator on the group. "edit" may write.
+      allow get: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || (resource.data.get('group_id', null) != null
+                && memberOf(resource.data.group_id)));
+      allow list: if canList(resource.data.get('user_id', ''));
+      allow delete: if human() && resource.data.user_id == request.auth.uid;
+
+      allow create: if signedIn()
+        && incoming().user_id == request.auth.uid
+        // As for geometries above: a group you are not in is not yours to put
+        // a simulation into.
+        && (incoming().get('group_id', null) == null
+            || memberOf(incoming().group_id))
+        && textOk(incoming().get('name', null), 200)
+        && mapOk(incoming().get('setup', null), 200)
+        && mapOk(incoming().get('spec', null), 30)
+        && mapOk(incoming().get('mesh_spec', null), 30)
+        // validation is what the server decided about this setup. A client
+        // that could write it could mark an invalid setup ok and queue it.
+        && !('validation' in incoming());
+
+      allow update: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || (resource.data.get('group_id', null) != null
+                && canEditGroup(resource.data.group_id)))
+        && incoming().user_id == resource.data.user_id
+        && textOk(incoming().get('name', null), 200)
+        && mapOk(incoming().get('setup', null), 200)
+        && mapOk(incoming().get('spec', null), 30)
+        && mapOk(incoming().get('mesh_spec', null), 30)
+        && !changed().hasAny(['validation']);
+    }
+
+    // ── server-only ───────────────────────────────────────────────────────
+    // Public prices, so the browser can quote before sign-in.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Fusion connection tokens.
+    //
+    // The listing under the account carries no secret — a label, the last few
+    // characters, and when it was last used — so the owner can see which token
+    // to revoke. Creating and revoking go through callables, because the hash
+    // that actually authenticates lives in a collection no client can touch.
+    match /users/{uid}/fusion_tokens/{tokenId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+    match /fusion_tokens/{hash} {
+      allow read, write: if false;
+    }
+
+    // Purchase intents and rate-limit counters. Neither is ever a client's
+    // business; both decide money or access.
+    match /paypal_orders/{orderId} {
+      allow read, write: if false;
+    }
+    match /rate/{rateId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

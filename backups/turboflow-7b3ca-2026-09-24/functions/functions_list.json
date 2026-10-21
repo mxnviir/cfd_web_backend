@@ -1,0 +1,398 @@
+[
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/aef6ef92-be23-4f43-adee-710d211a5b73",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "submitSimulationJob",
+      "environmentVariables": {
+        "GOOGLE_NODE_RUN_SCRIPTS": ""
+      },
+      "runtime": "nodejs24",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705247259200",
+          "object": "submitSimulationJob/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705247259200",
+          "object": "submitSimulationJob/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-02-19T11:57:32.275002430Z",
+    "environment": "GEN_2",
+    "labels": {
+      "deployment-callable": "true",
+      "deployment-tool": "cli-firebase",
+      "firebase-functions-hash": "227407f1bba9cedede3390413a1d8a33d855c7ae"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/submitSimulationJob",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "1",
+      "availableMemory": "256Mi",
+      "environmentVariables": {
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1474731683419787414/PHeM4pfYXXy4vhvlLCdUC5y3BkfFaiL4qgAYRvu62HnlRCyW6_AFamJZh0WeP86ce7iP",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/turboflow-7b3ca/locations/us-central1/services/submitSimulationJob",
+        "FIREBASE_CONFIG": "{\"projectId\":\"turboflow-7b3ca\",\"storageBucket\":\"turboflow-7b3ca.firebasestorage.app\"}",
+        "FUNCTION_TARGET": "submitSimulationJob",
+        "GCLOUD_PROJECT": "turboflow-7b3ca",
+        "LOG_EXECUTION_ID": "true",
+        "PAYPAL_CLIENT_ID": "BAAGqBbRxonOHuiEVdzY2h6Z7_TzXUdQV7lzJe95_UFbzabmvhSga5nfXZ8iSWtTPTret9IKGyOpnURDOg",
+        "PAYPAL_ENV": "sandbox",
+        "PAYPAL_SECRET": "EMZcSp9TIkmHTjuW-f7zrySDnFrgoju7wtw_HlgG0E_TK5nf6rHlIumBzjvX_vkBjTVwtBRRB7uh2oj8"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 20,
+      "maxInstanceRequestConcurrency": 80,
+      "revision": "submitsimulationjob-00024-deh",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/submitsimulationjob",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://submitsimulationjob-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-07-22T07:28:21.921178943Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/submitSimulationJob"
+  },
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/67fc4b48-77a7-4702-b424-31d8b3bf14c6",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "run_lap_calc",
+      "runtime": "python311",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1772254756354491",
+          "object": "run_lap_calc/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1772254756354491",
+          "object": "run_lap_calc/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-02-27T17:16:28.644178991Z",
+    "environment": "GEN_2",
+    "labels": {
+      "deployment-tool": "cli-gcloud"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/run_lap_calc",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "0.1666",
+      "availableMemory": "256M",
+      "environmentVariables": {
+        "LOG_EXECUTION_ID": "true"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 100,
+      "maxInstanceRequestConcurrency": 1,
+      "revision": "run-lap-calc-00003-sig",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/run-lap-calc",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://run-lap-calc-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-02-28T05:00:05.761187042Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/run_lap_calc"
+  },
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/aef6ef92-be23-4f43-adee-710d211a5b73",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "refundJob",
+      "environmentVariables": {
+        "GOOGLE_NODE_RUN_SCRIPTS": ""
+      },
+      "runtime": "nodejs24",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705302887705",
+          "object": "refundJob/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705302887705",
+          "object": "refundJob/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-02-19T12:26:18.599010927Z",
+    "environment": "GEN_2",
+    "labels": {
+      "deployment-callable": "true",
+      "deployment-tool": "cli-firebase",
+      "firebase-functions-hash": "227407f1bba9cedede3390413a1d8a33d855c7ae"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/refundJob",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "1",
+      "availableMemory": "256Mi",
+      "environmentVariables": {
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1474731683419787414/PHeM4pfYXXy4vhvlLCdUC5y3BkfFaiL4qgAYRvu62HnlRCyW6_AFamJZh0WeP86ce7iP",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/turboflow-7b3ca/locations/us-central1/services/refundJob",
+        "FIREBASE_CONFIG": "{\"projectId\":\"turboflow-7b3ca\",\"storageBucket\":\"turboflow-7b3ca.firebasestorage.app\"}",
+        "FUNCTION_SIGNATURE_TYPE": "http",
+        "FUNCTION_TARGET": "refundJob",
+        "GCLOUD_PROJECT": "turboflow-7b3ca",
+        "LOG_EXECUTION_ID": "true",
+        "PAYPAL_CLIENT_ID": "BAAGqBbRxonOHuiEVdzY2h6Z7_TzXUdQV7lzJe95_UFbzabmvhSga5nfXZ8iSWtTPTret9IKGyOpnURDOg",
+        "PAYPAL_ENV": "sandbox",
+        "PAYPAL_SECRET": "EMZcSp9TIkmHTjuW-f7zrySDnFrgoju7wtw_HlgG0E_TK5nf6rHlIumBzjvX_vkBjTVwtBRRB7uh2oj8"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 20,
+      "maxInstanceRequestConcurrency": 80,
+      "revision": "refundjob-00023-yaf",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/refundjob",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://refundjob-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-07-22T07:28:29.964586903Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/refundJob"
+  },
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/86a1d68f-cceb-4266-b052-a0f422549bec",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "capturePayPalOrder",
+      "environmentVariables": {
+        "GOOGLE_NODE_RUN_SCRIPTS": ""
+      },
+      "runtime": "nodejs24",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705876877968",
+          "object": "capturePayPalOrder/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705876877968",
+          "object": "capturePayPalOrder/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-07-21T16:41:27.593178441Z",
+    "environment": "GEN_2",
+    "labels": {
+      "deployment-callable": "true",
+      "deployment-tool": "cli-firebase",
+      "firebase-functions-hash": "98c18f8063a5066b97482c294255fe0296c18653"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/capturePayPalOrder",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "1",
+      "availableMemory": "256Mi",
+      "environmentVariables": {
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1474731683419787414/PHeM4pfYXXy4vhvlLCdUC5y3BkfFaiL4qgAYRvu62HnlRCyW6_AFamJZh0WeP86ce7iP",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/turboflow-7b3ca/locations/us-central1/services/capturePayPalOrder",
+        "FIREBASE_CONFIG": "{\"projectId\":\"turboflow-7b3ca\",\"storageBucket\":\"turboflow-7b3ca.firebasestorage.app\"}",
+        "FUNCTION_SIGNATURE_TYPE": "http",
+        "FUNCTION_TARGET": "capturePayPalOrder",
+        "GCLOUD_PROJECT": "turboflow-7b3ca",
+        "LOG_EXECUTION_ID": "true",
+        "PAYPAL_CLIENT_ID": "BAAPDJOjS2wNnD0vSOiol_8WUec-qETpIQJFMe8qgrcRMusJu8ModWK55fpICo5tBJvi30gOXfL8e5fdos",
+        "PAYPAL_ENV": "live",
+        "PAYPAL_SECRET": "EAraDsBzAuH6f9NkWx0e4LIjsubhlchFEuI67WQVkpVbXyxFf-EAIYCIlZC9iX7pYma0hY25s4m5QebN"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 20,
+      "maxInstanceRequestConcurrency": 80,
+      "revision": "capturepaypalorder-00006-zos",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/capturepaypalorder",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://capturepaypalorder-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-07-22T07:38:15.238610232Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/capturePayPalOrder"
+  },
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/aef6ef92-be23-4f43-adee-710d211a5b73",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "onNewJob",
+      "environmentVariables": {
+        "GOOGLE_NODE_RUN_SCRIPTS": ""
+      },
+      "runtime": "nodejs24",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705303651543",
+          "object": "onNewJob/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705303651543",
+          "object": "onNewJob/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-02-21T11:56:15.232724756Z",
+    "environment": "GEN_2",
+    "eventTrigger": {
+      "eventFilters": [
+        {
+          "attribute": "database",
+          "value": "(default)"
+        },
+        {
+          "attribute": "namespace",
+          "value": "(default)"
+        },
+        {
+          "attribute": "document",
+          "operator": "match-path-pattern",
+          "value": "jobs/{jobId}"
+        }
+      ],
+      "eventType": "google.cloud.firestore.document.v1.created",
+      "pubsubTopic": "projects/turboflow-7b3ca/topics/eventarc-me-central1-onnewjob-681176-003",
+      "retryPolicy": "RETRY_POLICY_DO_NOT_RETRY",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "trigger": "projects/turboflow-7b3ca/locations/me-central1/triggers/onnewjob-681176",
+      "triggerRegion": "me-central1"
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase",
+      "firebase-functions-hash": "227407f1bba9cedede3390413a1d8a33d855c7ae"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/onNewJob",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "1",
+      "availableMemory": "256Mi",
+      "environmentVariables": {
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1474731683419787414/PHeM4pfYXXy4vhvlLCdUC5y3BkfFaiL4qgAYRvu62HnlRCyW6_AFamJZh0WeP86ce7iP",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/turboflow-7b3ca/locations/us-central1/services/onNewJob",
+        "FIREBASE_CONFIG": "{\"projectId\":\"turboflow-7b3ca\",\"storageBucket\":\"turboflow-7b3ca.firebasestorage.app\"}",
+        "FUNCTION_SIGNATURE_TYPE": "cloudevent",
+        "FUNCTION_TARGET": "onNewJob",
+        "GCLOUD_PROJECT": "turboflow-7b3ca",
+        "LOG_EXECUTION_ID": "true",
+        "PAYPAL_CLIENT_ID": "BAAGqBbRxonOHuiEVdzY2h6Z7_TzXUdQV7lzJe95_UFbzabmvhSga5nfXZ8iSWtTPTret9IKGyOpnURDOg",
+        "PAYPAL_ENV": "sandbox",
+        "PAYPAL_SECRET": "EMZcSp9TIkmHTjuW-f7zrySDnFrgoju7wtw_HlgG0E_TK5nf6rHlIumBzjvX_vkBjTVwtBRRB7uh2oj8"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 20,
+      "maxInstanceRequestConcurrency": 80,
+      "revision": "onnewjob-00011-zop",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/onnewjob",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://onnewjob-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-07-22T07:28:30.765517486Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/onNewJob"
+  },
+  {
+    "buildConfig": {
+      "automaticUpdatePolicy": {},
+      "build": "projects/659747979647/locations/us-central1/builds/86a1d68f-cceb-4266-b052-a0f422549bec",
+      "dockerRegistry": "ARTIFACT_REGISTRY",
+      "dockerRepository": "projects/turboflow-7b3ca/locations/us-central1/repositories/gcf-artifacts",
+      "entryPoint": "createPayPalOrder",
+      "environmentVariables": {
+        "GOOGLE_NODE_RUN_SCRIPTS": ""
+      },
+      "runtime": "nodejs24",
+      "serviceAccount": "projects/turboflow-7b3ca/serviceAccounts/659747979647-compute@developer.gserviceaccount.com",
+      "source": {
+        "storageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705833203612",
+          "object": "createPayPalOrder/function-source.zip"
+        }
+      },
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "gcf-v2-sources-659747979647-us-central1",
+          "generation": "1784705833203612",
+          "object": "createPayPalOrder/function-source.zip"
+        }
+      }
+    },
+    "createTime": "2026-07-21T16:40:32.578136254Z",
+    "environment": "GEN_2",
+    "labels": {
+      "deployment-callable": "true",
+      "deployment-tool": "cli-firebase",
+      "firebase-functions-hash": "98c18f8063a5066b97482c294255fe0296c18653"
+    },
+    "name": "projects/turboflow-7b3ca/locations/us-central1/functions/createPayPalOrder",
+    "satisfiesPzi": true,
+    "serviceConfig": {
+      "allTrafficOnLatestRevision": true,
+      "availableCpu": "1",
+      "availableMemory": "256Mi",
+      "environmentVariables": {
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1474731683419787414/PHeM4pfYXXy4vhvlLCdUC5y3BkfFaiL4qgAYRvu62HnlRCyW6_AFamJZh0WeP86ce7iP",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/turboflow-7b3ca/locations/us-central1/services/createPayPalOrder",
+        "FIREBASE_CONFIG": "{\"projectId\":\"turboflow-7b3ca\",\"storageBucket\":\"turboflow-7b3ca.firebasestorage.app\"}",
+        "FUNCTION_TARGET": "createPayPalOrder",
+        "GCLOUD_PROJECT": "turboflow-7b3ca",
+        "LOG_EXECUTION_ID": "true",
+        "PAYPAL_CLIENT_ID": "BAAPDJOjS2wNnD0vSOiol_8WUec-qETpIQJFMe8qgrcRMusJu8ModWK55fpICo5tBJvi30gOXfL8e5fdos",
+        "PAYPAL_ENV": "live",
+        "PAYPAL_SECRET": "EAraDsBzAuH6f9NkWx0e4LIjsubhlchFEuI67WQVkpVbXyxFf-EAIYCIlZC9iX7pYma0hY25s4m5QebN"
+      },
+      "ingressSettings": "ALLOW_ALL",
+      "maxInstanceCount": 20,
+      "maxInstanceRequestConcurrency": 80,
+      "revision": "createpaypalorder-00007-bep",
+      "service": "projects/turboflow-7b3ca/locations/us-central1/services/createpaypalorder",
+      "serviceAccountEmail": "659747979647-compute@developer.gserviceaccount.com",
+      "timeoutSeconds": 60,
+      "uri": "https://createpaypalorder-nolujfjgeq-uc.a.run.app"
+    },
+    "state": "ACTIVE",
+    "updateTime": "2026-07-22T07:38:17.994532987Z",
+    "url": "https://us-central1-turboflow-7b3ca.cloudfunctions.net/createPayPalOrder"
+  }
+]

@@ -1,0 +1,184 @@
+{
+ "version": 1,
+ "etag": "BwZZALM1t54=",
+ "bindings": [
+  {
+   "role": "roles/artifactregistry.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/cloudbuild.builds.builder",
+   "members": [
+    "serviceAccount:659747979647@cloudbuild.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/cloudbuild.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/cloudfunctions.developer",
+   "members": [
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/cloudfunctions.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcf-admin-robot.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/containerregistry.ServiceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@containerregistry.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/datastore.user",
+   "members": [
+    "serviceAccount:659747979647-compute@developer.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/editor",
+   "members": [
+    "serviceAccount:659747979647-compute@developer.gserviceaccount.com",
+    "serviceAccount:659747979647@cloudservices.gserviceaccount.com",
+    "serviceAccount:turboflow-7b3ca@appspot.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/eventarc.eventReceiver",
+   "members": [
+    "serviceAccount:659747979647-compute@developer.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/eventarc.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-eventarc.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebase.managementServiceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-firebase.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebase.sdkAdminServiceAgent",
+   "members": [
+    "serviceAccount:firebase-adminsdk-fbsvc@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebaseauth.admin",
+   "members": [
+    "serviceAccount:firebase-adminsdk-fbsvc@turboflow-7b3ca.iam.gserviceaccount.com",
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebasehosting.admin",
+   "members": [
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebasemods.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-firebasemods.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebaserules.system",
+   "members": [
+    "serviceAccount:service-659747979647@firebase-rules.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firebasestorage.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-firebasestorage.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/firestore.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-firestore.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/iam.serviceAccountTokenCreator",
+   "members": [
+    "serviceAccount:firebase-adminsdk-fbsvc@turboflow-7b3ca.iam.gserviceaccount.com",
+    "serviceAccount:service-659747979647@gcp-sa-pubsub.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/owner",
+   "members": [
+    "user:shashanksaraswat93@gmail.com"
+   ]
+  },
+  {
+   "role": "roles/pubsub.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@gcp-sa-pubsub.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/run.admin",
+   "members": [
+    "serviceAccount:supabase-job-trigger@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/run.invoker",
+   "members": [
+    "serviceAccount:659747979647-compute@developer.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/run.serviceAgent",
+   "members": [
+    "serviceAccount:service-659747979647@serverless-robot-prod.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/run.viewer",
+   "members": [
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/serviceusage.apiKeysViewer",
+   "members": [
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/serviceusage.serviceUsageConsumer",
+   "members": [
+    "serviceAccount:github-action-777291551@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/storage.admin",
+   "members": [
+    "serviceAccount:firebase-adminsdk-fbsvc@turboflow-7b3ca.iam.gserviceaccount.com"
+   ]
+  },
+  {
+   "role": "roles/storage.objectAdmin",
+   "members": [
+    "serviceAccount:659747979647-compute@developer.gserviceaccount.com"
+   ]
+  }
+ ]
+}

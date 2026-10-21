@@ -1,0 +1,42 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  annotations:
+    run.googleapis.com/creator: shashanksaraswat93@gmail.com
+    run.googleapis.com/lastModifier: shashanksaraswat93@gmail.com
+  labels:
+    cloud.googleapis.com/location: us-central1
+    run.googleapis.com/lastUpdatedTime: '2026-08-11T21:01:56.926866Z'
+  name: simscale-job-supabase
+  namespace: '659747979647'
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 558.0.0
+        run.googleapis.com/execution-environment: gen2
+      labels:
+        client.knative.dev/nonce: tom_qam_faf
+    spec:
+      taskCount: 1
+      template:
+        spec:
+          containers:
+          - env:
+            - name: SUPABASE_URL
+              value: https://unwzwzzuzvqwkxdbxxpd.supabase.co
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              value: sb_secret_uHd_vt0O3tNiEv0uKIipOw_MogI9cRa
+            - name: SUPABASE_BUCKET
+              value: cfd-files
+            - name: SIMSCALE_API_KEY
+              value: 9abd88bc-e0d7-4477-9416-842a69d1158d
+            image: gcr.io/turboflow-7b3ca/simscale-job-supabase
+            resources:
+              limits:
+                cpu: '4'
+                memory: 8Gi
+          maxRetries: 0
+          serviceAccountName: 659747979647-compute@developer.gserviceaccount.com
+          timeoutSeconds: '7200'

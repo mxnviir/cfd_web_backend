@@ -1,0 +1,170 @@
+[
+  {
+    "apiVersion": "run.googleapis.com/v1",
+    "kind": "Job",
+    "metadata": {
+      "annotations": {
+        "run.googleapis.com/client-name": "gcloud",
+        "run.googleapis.com/client-version": "558.0.0",
+        "run.googleapis.com/creator": "shashanksaraswat93@gmail.com",
+        "run.googleapis.com/lastModifier": "shashanksaraswat93@gmail.com",
+        "run.googleapis.com/operation-id": "993a56fc-7014-4d72-b8b3-821e2b6c8880"
+      },
+      "creationTimestamp": "2026-02-26T08:18:52.496592Z",
+      "generation": 32,
+      "labels": {
+        "cloud.googleapis.com/location": "us-central1",
+        "run.googleapis.com/lastUpdatedTime": "2026-07-30T21:16:29.108436Z"
+      },
+      "name": "simscale-job",
+      "namespace": "659747979647",
+      "resourceVersion": "AAZZO1JeaG4",
+      "selfLink": "/apis/run.googleapis.com/v1/namespaces/659747979647/jobs/simscale-job",
+      "uid": "6fa12553-d84d-4b84-9e40-2371e268ce0c"
+    },
+    "spec": {
+      "template": {
+        "metadata": {
+          "annotations": {
+            "run.googleapis.com/client-name": "gcloud",
+            "run.googleapis.com/client-version": "558.0.0",
+            "run.googleapis.com/execution-environment": "gen2"
+          },
+          "labels": {
+            "client.knative.dev/nonce": "ves_tux_dis"
+          }
+        },
+        "spec": {
+          "taskCount": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "gcr.io/turboflow-7b3ca/simscale-job",
+                  "resources": {
+                    "limits": {
+                      "cpu": "2",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ],
+              "maxRetries": 0,
+              "serviceAccountName": "659747979647-compute@developer.gserviceaccount.com",
+              "timeoutSeconds": "7200"
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "conditions": [
+        {
+          "status": "True",
+          "type": "Ready"
+        }
+      ],
+      "executionCount": 351,
+      "latestCreatedExecution": {
+        "completionStatus": "EXECUTION_FAILED",
+        "completionTimestamp": "2026-08-17T10:06:18.935439Z",
+        "creationTimestamp": "2026-08-17T08:04:17.782476Z",
+        "name": "simscale-job-l7rlx"
+      },
+      "observedGeneration": 32
+    }
+  },
+  {
+    "apiVersion": "run.googleapis.com/v1",
+    "kind": "Job",
+    "metadata": {
+      "annotations": {
+        "run.googleapis.com/client-name": "gcloud",
+        "run.googleapis.com/client-version": "558.0.0",
+        "run.googleapis.com/creator": "shashanksaraswat93@gmail.com",
+        "run.googleapis.com/lastModifier": "shashanksaraswat93@gmail.com",
+        "run.googleapis.com/operation-id": "4b9915d6-fc8f-42a9-ba70-122466305b96"
+      },
+      "creationTimestamp": "2026-08-11T18:51:51.913743Z",
+      "generation": 8,
+      "labels": {
+        "cloud.googleapis.com/location": "us-central1",
+        "run.googleapis.com/lastUpdatedTime": "2026-08-11T21:01:56.926866Z"
+      },
+      "name": "simscale-job-supabase",
+      "namespace": "659747979647",
+      "resourceVersion": "AAZYy8f/tdg",
+      "selfLink": "/apis/run.googleapis.com/v1/namespaces/659747979647/jobs/simscale-job-supabase",
+      "uid": "013cae11-fbe5-4ff0-80d5-e984573247dc"
+    },
+    "spec": {
+      "template": {
+        "metadata": {
+          "annotations": {
+            "run.googleapis.com/client-name": "gcloud",
+            "run.googleapis.com/client-version": "558.0.0",
+            "run.googleapis.com/execution-environment": "gen2"
+          },
+          "labels": {
+            "client.knative.dev/nonce": "tom_qam_faf"
+          }
+        },
+        "spec": {
+          "taskCount": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "SUPABASE_URL",
+                      "value": "https://unwzwzzuzvqwkxdbxxpd.supabase.co"
+                    },
+                    {
+                      "name": "SUPABASE_SERVICE_ROLE_KEY",
+                      "value": "sb_secret_uHd_vt0O3tNiEv0uKIipOw_MogI9cRa"
+                    },
+                    {
+                      "name": "SUPABASE_BUCKET",
+                      "value": "cfd-files"
+                    },
+                    {
+                      "name": "SIMSCALE_API_KEY",
+                      "value": "9abd88bc-e0d7-4477-9416-842a69d1158d"
+                    }
+                  ],
+                  "image": "gcr.io/turboflow-7b3ca/simscale-job-supabase",
+                  "resources": {
+                    "limits": {
+                      "cpu": "4",
+                      "memory": "8Gi"
+                    }
+                  }
+                }
+              ],
+              "maxRetries": 0,
+              "serviceAccountName": "659747979647-compute@developer.gserviceaccount.com",
+              "timeoutSeconds": "7200"
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "conditions": [
+        {
+          "status": "True",
+          "type": "Ready"
+        }
+      ],
+      "executionCount": 2,
+      "latestCreatedExecution": {
+        "completionStatus": "EXECUTION_FAILED",
+        "completionTimestamp": "2026-08-11T19:04:47.079313Z",
+        "creationTimestamp": "2026-08-11T19:01:34.595160Z",
+        "name": "simscale-job-supabase-4m7ws"
+      },
+      "observedGeneration": 8
+    }
+  }
+]

@@ -1,0 +1,33 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  annotations:
+    run.googleapis.com/creator: shashanksaraswat93@gmail.com
+    run.googleapis.com/lastModifier: shashanksaraswat93@gmail.com
+  labels:
+    cloud.googleapis.com/location: us-central1
+    run.googleapis.com/lastUpdatedTime: '2026-07-30T21:16:29.108436Z'
+  name: simscale-job
+  namespace: '659747979647'
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 558.0.0
+        run.googleapis.com/execution-environment: gen2
+      labels:
+        client.knative.dev/nonce: ves_tux_dis
+    spec:
+      taskCount: 1
+      template:
+        spec:
+          containers:
+          - image: gcr.io/turboflow-7b3ca/simscale-job
+            resources:
+              limits:
+                cpu: '2'
+                memory: 2Gi
+          maxRetries: 0
+          serviceAccountName: 659747979647-compute@developer.gserviceaccount.com
+          timeoutSeconds: '7200'

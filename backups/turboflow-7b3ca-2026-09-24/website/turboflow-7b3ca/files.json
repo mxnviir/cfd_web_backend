@@ -1,0 +1,82 @@
+[
+ {
+  "path": "/.claude/launch.json",
+  "hash": "990ed11080375f4dc6d958379c5254b22e94db0122b95d17b36beaa8238c0cf2",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/.claude/settings.local.json",
+  "hash": "af161f71b49eca7eda4ebc59edfeb937f5f9b1d56e2bd0fd6c32e8a8fff7fdc4",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/.github/workflows/firebase-hosting-pull-request.yml",
+  "hash": "67ab305fa4c26b8059e5af7c721139253ab5e95962c99e7c0072aec0dad2da63",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/__/firebase/init.js",
+  "hash": "07d77ef0f5a7509b27fd80e1e1dba952507b98774bf236805405443fd4e2c67a",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/__/firebase/init.json",
+  "hash": "be8c15cfb8eec294b959f959783cfedb9b7fa6ee4b2e11f012450bb98ddd96f9",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/app.compiled.js",
+  "hash": "b4dc140a60e31e3cea176e14b4a139ac62bb0a396ac750adf82586c04e61b3a4",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/functions/index.js",
+  "hash": "f512bc6eb29aa1fa65ff896db986473632a2422e5d0fba157b8c7d71d6733168",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/functions/package-lock.json",
+  "hash": "3a236be8604123e454cf676d7134c0b2e619e57cf119c7aac59dd1c79508e1f1",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/functions/package.json",
+  "hash": "90f1ef6a8da90d7811df9f8e1f3db200f34820f98f783faec3d7a32f1d25d097",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/hero-background.mp4",
+  "hash": "b8a3ee5e2686b2ec4aa9522740d24314a92bc3ec4eefeaef51cd2497d67ffb18",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/index.html",
+  "hash": "63fe5df1a817511e174713f2fa96317289c1bae7e0bca2e84ab714dcd41fcffc",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/logo.png",
+  "hash": "02558ef9aaa27c3fa8fbe92d44da89e4186be0ef20964f7852c207741887793b",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/script.js",
+  "hash": "e98f60701149eab0492e85d0c3e3864604f742ee40a8ca97fc2cf6c7f6069169",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/style.css",
+  "hash": "1ec62ea4c83e48fdcc2c993a2e319ef9beca5a70e1189ead36e538b6cebdec10",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/tmp_live_check.png",
+  "hash": "1fceaf475a5fc9e9907d336b7f0d8ed08099cfc07293b11bc574d767a4f65c03",
+  "status": "ACTIVE"
+ },
+ {
+  "path": "/tmp_local_check.png",
+  "hash": "07d1e03a51482fabe2a74191deed19a5c6e56ad9192d2b68e81d5baea6040f4a",
+  "status": "ACTIVE"
+ }
+]

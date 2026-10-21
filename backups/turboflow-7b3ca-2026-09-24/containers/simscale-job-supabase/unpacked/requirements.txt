@@ -1,0 +1,8 @@
+git+https://github.com/SimScaleGmbH/simscale-python-sdk.git
+supabase
+requests
+# Post-processing: read SimScale's VTK package and repack it as glTF + raw field
+# binaries the workbench can render itself.
+pyvista==0.44.2
+trimesh==4.5.3
+numpy<3

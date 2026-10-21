@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tunnel Cut Test</title>
+  <style>
+    :root {
+      --bg: #ffffff; --ink: #16181d; --muted: #5b6270; --line: #d9dde4;
+      --accent: #1f5fd6; --ok: #1d7a44; --bad: #b3261e;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111317; --ink: #e8eaee; --muted: #9aa1ad; --line: #2c3038;
+              --accent: #7aa7ff; --ok: #5cc38a; --bad: #ff8a80; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+           font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    .lede { color: var(--muted); margin: 0 0 24px; }
+    fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 0 0 16px; }
+    legend { color: var(--muted); padding: 0 4px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+    label { display: block; }
+    input[type=number] { width: 100%; box-sizing: border-box; font: inherit; padding: 6px 8px;
+                         border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; }
+    button { font: inherit; padding: 8px 18px; border-radius: 6px; border: 1px solid var(--accent);
+             background: var(--accent); color: var(--bg); cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
+    #cancel { background: transparent; color: var(--accent); }
+    .actions { display: flex; gap: 12px; margin: 8px 0 24px; }
+    progress { width: 100%; height: 12px; accent-color: var(--accent); }
+    #status { min-height: 1.5em; margin: 8px 0 0; }
+    #status[data-kind=error] { color: var(--bad); }
+    #status[data-kind=ok] { color: var(--ok); }
+    dl { display: grid; gap: 6px; margin: 16px 0; }
+    dl div { display: grid; grid-template-columns: 190px 1fr; gap: 12px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+    @media (max-width: 480px) { dl div { grid-template-columns: 1fr; gap: 0; } }
+    .downloads a { color: var(--accent); margin-right: 16px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Tunnel cut test</h1>
+  <p class="lede">Cuts the car out of the wind tunnel in this browser. The file never leaves this computer.</p>
+
+  <fieldset>
+    <legend>Car</legend>
+    <input id="file" type="file" accept=".step,.stp">
+  </fieldset>
+
+  <fieldset>
+    <legend>Tunnel</legend>
+    <label><input id="half" type="radio" name="width" checked> Half tunnel with a symmetry plane</label>
+    <label><input id="full" type="radio" name="width"> Full width</label>
+    <div class="grid" style="margin-top:12px">
+      <label>Upstream, m <input id="up" type="number" value="1.5" min="0.05" max="50" step="0.1"></label>
+      <label>Downstream, m <input id="down" type="number" value="0.5" min="0.05" max="50" step="0.1"></label>
+      <label>Side, m <input id="side" type="number" value="0.3" min="0.01" max="10" step="0.05"></label>
+      <label>Top, m <input id="top" type="number" value="0.3" min="0.01" max="10" step="0.05"></label>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button id="go" type="button">Cut the tunnel</button>
+    <button id="cancel" type="button" hidden>Cancel</button>
+  </div>
+
+  <div id="progress-box" hidden>
+    <progress id="bar" max="100" value="0" aria-label="Progress"></progress>
+    <p id="status" role="status" aria-live="polite"></p>
+  </div>
+
+  <section id="result" hidden>
+    <dl id="facts"></dl>
+    <p class="downloads">
+      <a id="dl-step">Download tunnel (.step)</a>
+      <a id="dl-labels">Download face labels (.csv)</a>
+    </p>
+  </section>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+ "name": "sites/turboflow-7b3ca/channels/live",
+ "url": "https://turboflow-7b3ca.web.app",
+ "release": {
+  "name": "sites/turboflow-7b3ca/channels/live/releases/1785856545838000",
+  "version": {
+   "name": "sites/turboflow-7b3ca/versions/fa328903006aff67",
+   "status": "FINALIZED",
+   "config": {
+    "rewrites": [
+     {
+      "glob": "**",
+      "path": "/index.html"
+     }
+    ]
+   },
+   "labels": {
+    "deployment-tool": "cli-firebase"
+   },
+   "createTime": "2026-08-04T15:15:39.623362Z",
+   "createUser": {
+    "email": "shashanksaraswat93@gmail.com"
+   },
+   "finalizeTime": "2026-08-04T15:15:44.721453Z",
+   "finalizeUser": {
+    "email": "shashanksaraswat93@gmail.com"
+   },
+   "fileCount": "16",
+   "versionBytes": "5076098"
+  },
+  "type": "DEPLOY",
+  "releaseTime": "2026-08-04T15:15:45.838Z",
+  "releaseUser": {
+   "email": "shashanksaraswat93@gmail.com"
+  }
+ },
+ "createTime": "2026-02-18T14:33:21.168360826Z",
+ "updateTime": "2026-08-04T15:15:45.838Z",
+ "retainedReleaseCount": 2147483647
+}

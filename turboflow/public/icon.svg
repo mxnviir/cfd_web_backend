@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="TurboFlow">
+  <!-- A mark rather than the wordmark. The PNG icons are "TurboFlow" scaled into
+       a square, which at 16px is a grey smudge; this has to survive a browser
+       tab. Three streamlines lifting over a wedge: it is what the product does,
+       it reads at 16px, and it is two flat colours with no gradient, no glow and
+       square corners, per the design rules. -->
+  <rect width="32" height="32" fill="#141414"/>
+  <g fill="none" stroke="#4a90d9" stroke-width="2.4" stroke-linecap="square">
+    <path d="M3 10 H12 C16 10 18 8.5 21 8.5 H29"/>
+    <path d="M3 16 H10 C15 16 17 13 22 13 H29"/>
+  </g>
+  <!-- The body the flow is going over. Solid, so the mark has one weighted
+       shape and does not read as three loose lines. -->
+  <path d="M4 25 H28 L24 20 H13 L9 22.5 H4 Z" fill="#eeeeee"/>
+</svg>

@@ -1,0 +1,167 @@
+rules_version = '2';
+
+// TurboFlow Storage rules.
+//
+// The rule being replaced was:
+//
+//     match /jobs/{jobId}/{allPaths=**} {
+//       allow create, update: if isSignedIn();
+//     }
+//
+// Any signed-in user could overwrite any other user's geometry or results, with
+// no size limit. The comment explaining it was right about the cause: the Fusion
+// add-in uploads under a random job id *before* the job document exists, so
+// there was nothing to check ownership against.
+//
+// The fix is to put the owner in the path. `users/{uid}/...` with
+// `request.auth.uid == uid` is a complete ownership check on its own — it needs
+// no Firestore lookup, so it costs nothing to evaluate and it does not care
+// whether the document or the bytes arrive first.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function underLimit(mb) {
+      return request.resource.size < mb * 1024 * 1024;
+    }
+
+    // Cross-service lookup: Storage rules may read Firestore, and this is the
+    // only way to tie a results folder to its owner, because the worker writes
+    // those paths with admin credentials and the uid is not in the path.
+    //
+    // Written with one `firestore.get` and direct field access. The earlier
+    // version called `firestore.get` twice and used the two-argument
+    // `Map.get(key, default)`, and every owner reading their own results log
+    // got 403. A denied rule says only "Permission denied", so the shape of
+    // the expression is worth keeping boring.
+    function jobData(jobId) {
+      return firestore.get(/databases/(default)/documents/jobs/$(jobId)).data;
+    }
+
+    function ownsJob(jobId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/jobs/$(jobId))
+        && jobData(jobId).user_id == request.auth.uid;
+    }
+
+    // ── geometry uploads (Workbench and web) ──────────────────────────────
+    // Keyed by geometry rather than by job on purpose: a geometry is run many
+    // times, and the worker deletes its own job folder when it finishes — with
+    // job-keyed paths, run 2 downloaded a file run 1 had already cleaned up.
+    match /users/{uid}/geometries/{geometryId}/{fileName} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+
+      // raw.step is the car as the user drew it, which is what the Workbench
+      // uploads first and hands to the geometry service to build a wind tunnel
+      // around. Without it in this list the new flow fails on its very first
+      // step; the service writes everything else with admin credentials and
+      // never passes through here at all.
+      //
+      // 60 MB, not 200. The geometry service refuses anything over 50 MB
+      // (MAX_STEP_BYTES), so a 199 MB upload could only ever be accepted here
+      // and then rejected there, after the user had waited for all of it.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && resource == null
+        // Build spec 13.4: the three CAD formats the geometry service reads.
+        // Everything under v{n}/ and results/ is written by services with
+        // admin credentials and never appears here.
+        && fileName in ['raw.step', 'raw.stp', 'raw.iges', 'raw.igs', 'raw.stl',
+                        'geometry.step', 'entity_labels.csv']
+        && underLimit(60);
+
+      // Write-once, enforced by `resource == null` on create above and not by
+      // the deny below. Uploading over an existing object through the media
+      // upload endpoint is evaluated as a create, not an update, so `update:
+      // if false` never runs and never stopped anything. Tested: before this,
+      // a second upload to the same path returned 200 and a new generation.
+      allow update: if false;
+      allow list: if false;
+    }
+
+    // ── a geometry version ────────────────────────────────────────────────
+    // model.glb, faces.json, solids.json, geometry.step and the thumbnail.
+    // All written by the geometry service on admin credentials, so a client
+    // may read its own and write none of them: a client that could write
+    // faces.json could rename the inlet.
+    // A wildcard has to be a whole path segment, so the folder is matched
+    // whole and its shape checked in the condition.
+    match /users/{uid}/geometries/{geometryId}/{versionDir}/{fileName} {
+      allow read: if signedIn()
+        && request.auth.uid == uid
+        && versionDir.matches('v[0-9]+');
+      allow write, list: if false;
+    }
+
+    // ── the path installed Fusion add-ins upload to ───────────────────────
+    // Kept working so copies already on people's machines keep uploading, but
+    // no longer overwritable. Job ids are random v4 UUIDs, so a stranger cannot
+    // guess a path to write into, and denying update closes the cross-tenant
+    // overwrite with no change to the add-in at all.
+    match /jobs/{jobId}/{fileName} {
+      // `resource == null` is what actually makes this write-once, and it is
+      // what closes the cross-tenant overwrite this rule was written for. The
+      // deny below was believed to do that and does not: an upload over an
+      // existing object is evaluated as a create. Tested before the fix, one
+      // account could replace another account's uploaded car and the run would
+      // solve the attacker's geometry under the victim's name.
+      //
+      // Ownership cannot be required here: installed add-ins upload the file
+      // before they write the job document, so there is nothing to check
+      // against yet. First writer wins is enough, because job ids are random
+      // v4 UUIDs and a path nobody can guess cannot be claimed in advance.
+      // Two names, not any name.
+      //
+      // This was `create: if signedIn() && resource == null && underLimit(60)`
+      // over `{allPaths=**}`, which let any account write a 60 MB object to
+      // jobs/<anything>/<anything>/<anything> as often as it liked. Nothing
+      // owns that prefix, so the per-account quota in
+      // functions/src/storage/quota.ts cannot charge it to anybody, and nothing
+      // swept it. One path segment and two filenames turns an open prefix into
+      // at most two objects per job id.
+      allow create: if signedIn() && resource == null && underLimit(60)
+        && fileName in ['geometry.step', 'entity_labels.csv'];
+      allow update: if false;
+      // ownsJob is a Firestore lookup, and that lookup does not work from
+      // Storage rules in this project, so in practice this line denies
+      // everything. It is left as the intent rather than rewritten to
+      // `if false`, because the add-in does not read or delete its uploads and
+      // nothing is being kept out that used to get in. If that changes, the
+      // fix is the same as the one applied to results: put the uid in the
+      // path. See the note on /users/{uid}/results below.
+      allow get, delete: if ownsJob(jobId);
+      allow list: if false;
+    }
+
+    // ── results ───────────────────────────────────────────────────────────
+    // Written by the worker through the Admin SDK, which bypasses these rules.
+    // Clients only read, and only their own.
+    //
+    // The uid is in the path on purpose. The previous home for these was
+    // /results/{jobId}, owned only by a Firestore lookup, and that lookup does
+    // not work here: even a bare
+    // `firestore.exists(/databases/(default)/documents/jobs/$(jobId))` denies
+    // the owner of the job. Nothing said so, because a rule that denies says
+    // only "Permission denied", so the results download had never worked for
+    // anybody and nothing had ever noticed.
+    match /users/{uid}/results/{jobId}/{allPaths=**} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow write, list: if false;
+    }
+
+    // The old location. Read by nobody now; kept denied rather than deleted so
+    // that files written before the move stay unreachable rather than falling
+    // through to some later rule.
+    match /results/{jobId}/{allPaths=**} {
+      allow read, write, list: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write, list: if false;
+    }
+  }
+}
+

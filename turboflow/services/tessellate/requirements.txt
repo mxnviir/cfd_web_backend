@@ -1,0 +1,25 @@
+# cadquery brings the OCC kernel (OCP) with it, which is what every geometry
+# operation here runs on: STEP import and export, bounding boxes, the cylinder
+# detection that finds wheels, and the boolean that cuts the car out of the
+# wind tunnel.
+# 2.8.0, not 2.5.2.
+#
+# On 2.5.2 the boolean that cuts the car out of the tunnel silently subtracted
+# only the wheels. A real 5-body car - one 628-face bodywork solid and four
+# wheels - came back as a tunnel with 18 faces and 19,000 mm3 removed where
+# 100,432 was due, so the run solved four wheels flying in formation and
+# reported a drag for them. The same file, the same code and the same domain
+# cut correctly on 2.8.0: 343 faces, 100.0% of the expected volume.
+#
+# The tests have been running against 2.8.0 on the dev machine the whole time,
+# which is how this hid: everything passed locally and production ran a kernel
+# nothing tested. tests/README.md already records two bugs of exactly this
+# shape, both from this pin. Now the two agree.
+cadquery==2.8.0
+trimesh==4.5.3
+flask==3.1.0
+gunicorn==23.0.0
+
+# Replaces the supabase client this service used to talk to. Storage and ID
+# token verification both come from here now.
+firebase-admin==7.1.0

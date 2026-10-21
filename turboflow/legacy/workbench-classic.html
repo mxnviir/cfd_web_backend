@@ -1,0 +1,3974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TurboFlow Workbench</title>
+  <meta name="description" content="Set up a CFD case on your geometry, run it, and read drag, lift, convergence and forces back in the browser." />
+  <!-- SVG first: browsers that support it get a mark that stays sharp at any
+       size, and the PNGs below stay as the fallback. -->
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="canonical" href="https://turboflow-test.web.app/workbench" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TurboFlow" />
+  <meta property="og:title" content="TurboFlow Workbench" />
+  <meta property="og:description" content="Set up a CFD case on your geometry, run it, and read drag, lift, convergence and forces back in the browser." />
+  <meta property="og:url" content="https://turboflow-test.web.app/workbench" />
+  <meta property="og:image" content="https://turboflow-test.web.app/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="The TurboFlow dashboard, showing the simulation list and credit balance." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <!-- Demo mode (?demo=1) swaps the live backend for an in-memory one seeded
+       with real solver output. It exists because Google sign-in is not enabled
+       yet (HANDOVER.md 14.1) and without it this page cannot be opened at all. -->
+  <script>window.DEMO_MODE = new URLSearchParams(location.search).has("demo");</script>
+  <!-- Backend. The Workbench was written against Supabase; workbench-adapter.js
+       answers the same calls out of Firestore, so this page barely changed. -->
+  <script>
+    if (window.DEMO_MODE) {
+      document.write('<script src="demo/demo-data.js"><\/script>');
+    } else {
+      document.write(''
+        + '<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"><\/script>'
+        + '<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"><\/script>'
+        + '<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"><\/script>'
+        + '<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"><\/script>'
+        + '<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-functions-compat.js"><\/script>'
+        + '<script src="firebase-config.js"><\/script>'
+        + '<script src="workbench-adapter.js"><\/script>');
+    }
+  </script>
+  <!-- three's examples/jsm modules (GLTFLoader, OrbitControls) import the bare
+       specifier "three" internally, which a browser cannot resolve on its own.
+       Without this map the whole viewer module fails at import and never runs:
+       renderGlb/applyField/setClip are simply never defined, the viewport stays
+       empty and nothing is logged. Must come before any type=module script. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="cfd-setup.js"></script>
+  <script src="workbench-panels.js"></script>
+  <script src="workbench-results.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    /* Design tokens, taken from the main TurboFlow app so the Workbench and
+       the site read as one product rather than two.
+
+       Dark, because this is looked at for hours and the thing that should be
+       bright is the result, not the chrome. Every value below has a counterpart
+       in src/styles.css; where a number differs it is noted why. */
+    :root {
+      /* Greys straight from the app: slate-950 ground, slate-900 panels,
+         slate-850 raised, and the same #2e2e2e rule between them. */
+      --bg:#141414; --panel:#1e1e1e; --panel-2:#2e2e2e; --inset:#181818;
+      --rule:#2e2e2e; --rule-strong:rgba(90,90,90,0.35);
+
+      /* ink-3 carries 10px uppercase labels (24 section eyebrows, 5 ribbon
+         labels), so it has to clear WCAG AA at small sizes. var(--ink-3) on the
+         #1e1e1e panel is 4.86:1, and stays a step below ink-2 so the
+         label-against-value hierarchy survives. Anything lighter collapses the
+         two into one grey. */
+      --ink:#eeeeee; --ink-2:#aaaaaa; --ink-3:#888888;
+
+      /* The app's industrial blue, with its cyan as the lifted state. The
+         accent means "this is selected" and nothing else; nothing here is
+         coloured for decoration. */
+      --accent:#4a90d9; --accent-hi:#5bc4d8; --accent-wash:rgba(74,144,217,0.10);
+      --accent-strong:#3a7bc8; --on-accent:#ffffff; --ink-4:#666666;
+      --scrim:rgba(0,0,0,0.55);
+      --ok:#5de88a; --warn:#ffc830; --bad:#ff8585;
+
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+
+      /* The app's radii: 6px on controls, 8px on cards and inputs. */
+      /* One radius, everywhere. The three names stay so the twenty call sites
+         do not all have to change, but they are one value now: the rules ask
+         for a single small radius, and three that differed by two pixels was
+         a design system in name only. */
+      --r1:4px; --r2:4px; --r3:4px;
+
+      /* One family across the whole site now. The app was on Inter, which the
+         design rules ban outright, so it moved here rather than the other way:
+         IBM Plex Sans is not on the banned list and the Workbench was already
+         using it. Three weights, 400 / 600 / 700. */
+      --font:"IBM Plex Sans",sans-serif;
+      --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+
+      /* The app's modal shadow, used for anything that floats above the
+         surface and nothing that does not. */
+      --shadow-card:0 32px 80px rgba(0,0,0,.6);
+      /* The results dock lifts off the viewport rather than floating over
+         the page, so it gets its own lighter value. Both are tokens: a
+         shadow that is not one of these two is decoration. */
+      --shadow-dock:0 -2px 12px rgba(0,0,0,.25);
+
+      /* Muted teal for the inlet glyph, SimScale's flow-in convention. Kept
+         desaturated so it stays a semantic marker rather than a second accent. */
+      --tint-inlet:#3f9d94;
+    }
+
+    /* The light theme, matching src/styles.css value for value. Not the dark
+       set inverted: on a light ground the dark accent scores 3.20 and the dark
+       status colours score under 2.3, so each has its own value here, checked
+       on a light panel. */
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:#f4f2ee; --panel:#fbfaf7; --panel-2:#eae7e0; --inset:#edeae4;
+        --rule:#d6d1c7; --rule-strong:#b9b2a4;
+        --ink:#24211d; --ink-2:#4a453d; --ink-3:#6f6961;
+        --accent:#1f5fa8; --accent-hi:#0f6b7d; --accent-wash:rgba(31,95,168,0.09);
+        --accent-strong:#18568f; --on-accent:#ffffff; --ink-4:#6f6961;
+        --scrim:rgba(40,34,24,0.38);
+      --accent-strong:#18568f; --on-accent:#ffffff; --ink-4:#6f6961;
+      --scrim:rgba(40,34,24,0.38);
+        --ok:#15703f; --warn:#7a5600; --bad:#b3261e;
+        --tint-inlet:#0f6b7d;
+        --shadow-card:0 24px 60px rgba(40,34,24,0.18);
+        --shadow-dock:0 -2px 12px rgba(40,34,24,0.12);
+      }
+    }
+    :root[data-theme="light"] {
+      --bg:#f4f2ee; --panel:#fbfaf7; --panel-2:#eae7e0; --inset:#edeae4;
+      --rule:#d6d1c7; --rule-strong:#b9b2a4;
+      --ink:#24211d; --ink-2:#4a453d; --ink-3:#6f6961;
+      --accent:#1f5fa8; --accent-hi:#0f6b7d; --accent-wash:rgba(31,95,168,0.09);
+      --ok:#15703f; --warn:#7a5600; --bad:#b3261e;
+      --tint-inlet:#0f6b7d;
+      --shadow-card:0 24px 60px rgba(40,34,24,0.18);
+      --shadow-dock:0 -2px 12px rgba(40,34,24,0.12);
+    }
+    * { box-sizing:border-box; }
+    html, body { height:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--ink);
+      font:13px/1.45 var(--font);
+      -webkit-font-smoothing:antialiased; letter-spacing:-0.005em;
+      /* The app's .main-grid ground, so the two halves share a surface. It
+         only shows through the sign-in gate and behind translucent panels; the
+         viewport and the docked panes sit on solid fills above it. Flat: a dot
+         grid is banned by the design rules, and it read as texture for its own
+         sake rather than as anything a user could act on. */
+    }
+    .hidden { display:none !important; }
+    .muted { color:var(--ink-2); }
+    .num   { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; }
+    .eyebrow {
+      font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+      color:var(--ink-3);
+    }
+
+    /* ── shell ── */
+    .app { display:flex; flex-direction:column; height:100%; }
+    .topbar {
+      display:flex; align-items:center; gap:var(--s4); height:38px; flex:0 0 38px;
+      padding:0 var(--s3); background:var(--panel); border-bottom:1px solid var(--rule);
+    }
+    .brand { display:flex; align-items:baseline; gap:var(--s2); }
+    .brand b { font-size:13px; font-weight:650; letter-spacing:-0.01em; }
+    .brand span { font-size:11px; color:var(--ink-3); }
+    .spacer { flex:1; }
+    .workspace { flex:1; display:flex; min-height:0; }
+    /* 246, not 236: "Simulation control" needed 105px of label and had 99. The
+       label is SimScale's own name for that node, so the panel gives way rather
+       than the wording. */
+    aside.left  { width:266px; flex:0 0 266px; border-right:1px solid var(--rule); }
+    aside.right { width:272px; flex:0 0 272px; border-left:1px solid var(--rule); }
+    aside { background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+    aside .body { overflow-y:auto; flex:1; padding-bottom:var(--s3); }
+    .pane-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:var(--s3) var(--s3) var(--s2);
+    }
+    main { flex:1; display:flex; flex-direction:column; min-width:0; }
+
+    /* ── ribbon ── */
+    .ribbon {
+      display:flex; align-items:stretch; height:56px; flex:0 0 56px;
+      padding:0 var(--s2); background:var(--panel);
+      border-bottom:1px solid var(--rule); overflow-x:auto; overflow-y:hidden;
+    }
+    .rgroup { display:flex; flex-direction:column; padding:0 var(--s2); flex:0 0 auto; }
+    .rgroup + .rgroup { border-left:1px solid var(--rule); }
+    .rgroup-row { display:flex; gap:1px; flex:1; align-items:flex-start; padding-top:2px; }
+    .rgroup-label {
+      text-align:center; font-size:9px; font-weight:600; letter-spacing:.07em;
+      text-transform:uppercase; color:var(--ink-3); padding-bottom:3px;
+    }
+    .rbtn {
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      min-width:52px; padding:3px 6px 2px; border:1px solid transparent;
+      border-radius:var(--r1); background:none; color:var(--ink-2);
+      font:inherit; font-size:10px; line-height:1.1; white-space:nowrap;
+    }
+    .rbtn:hover:not(:disabled) { background:var(--panel-2); color:var(--ink); }
+    .rbtn[aria-pressed="true"] { background:var(--accent-wash); border-color:var(--accent-wash); color:var(--accent-hi); }
+    .rbtn:disabled { opacity:.3; cursor:default; }
+    .rbtn:focus-visible { outline:1px solid var(--accent); outline-offset:1px; }
+    /* 1.7px, not 1.4 — a 16px glyph at hairline weight reads as smudge next to
+       10px label text, and the ribbon is the first thing anyone looks at. */
+    .rbtn svg {
+      width:16px; height:16px; stroke:currentColor; fill:none;
+      stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;
+    }
+    .rbtn { color:var(--ink-2); }
+    .rbtn:hover:not(:disabled) svg { stroke-width:1.9; }
+
+    /* ── viewport ── */
+    .viewport {
+      position:relative; flex:1; min-height:0; margin:var(--s2) var(--s2) 0;
+      background:var(--bg);
+      border:1px solid var(--rule); border-radius:var(--r3) var(--r3) 0 0; overflow:hidden;
+    }
+    .viewport canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+    .viewport-hint {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      pointer-events:none; color:var(--ink-3); font-size:12px;
+    }
+
+    /* ── cards & rows ── */
+        /* The app's .card-elegant: a soft vertical wash rather than a flat fill,
+       over a hairline that is lighter than the structural rules. */
+    .card {
+      background:var(--inset);
+      border:1px solid var(--rule); border-radius:var(--r2);
+    }
+    /* Sizes to its content — no minimum. A fixed floor looked generous with
+       eight runs and left ninety pixels of nothing under a simulation that has
+       two, which is the more common case. */
+    .runs {
+      margin:0 var(--s2) var(--s2); overflow:hidden;
+      border-radius:0 0 var(--r3) var(--r3); border-top:0; flex:0 0 auto;
+    }
+    /* 10 x 24px rows. 238 was 9.92 rows, so a full list always ended on a row
+       sliced at 90% — which reads as a rendering fault, not a scroll hint. */
+    .runs-body { max-height:240px; overflow-y:auto; }
+
+    /* Run rows are a table, so the numbers form columns you can read down.
+       Fixed trailing columns; only the name flexes and truncates. */
+    .row {
+      display:flex; align-items:center; gap:var(--s2); width:100%;
+      padding:0 var(--s3); height:24px;
+      border:0; background:none; color:inherit; text-align:left;
+      font:inherit; cursor:pointer; border-left:2px solid transparent;
+    }
+    .row:hover { background:var(--panel-2); }
+    .row:focus-visible { outline:1px solid var(--accent); outline-offset:-1px; }
+    .row.sel  { background:var(--accent-wash); border-left-color:var(--accent); }
+    .row .grow { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .row .c-tag  { flex:0 0 84px; }
+    .row .c-drag { flex:0 0 62px; text-align:right; }
+    .row .c-date { flex:0 0 48px; text-align:right; color:var(--ink-3); }
+    .row.child { padding-left:var(--s5); color:var(--ink-2); }
+    .row.child.sel { color:var(--ink); }
+    /* The 2px transparent left border matches .row's selection marker: without it
+       every figure sat 2px right of the column header naming it. Height matches
+       the 24px row module so the header shares the rows' grid. */
+    .runs-head {
+      display:flex; align-items:center; gap:var(--s2); padding:0 var(--s3); height:24px;
+      border-left:2px solid transparent;
+      border-bottom:1px solid var(--rule); color:var(--ink-3);
+      font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    }
+    .runs-head .grow { flex:1; }
+    .group-label {
+      display:flex; align-items:center; gap:var(--s2);
+      padding:var(--s3) var(--s3) var(--s1); font-weight:600; font-size:12px;
+    }
+    /* Expander triangle. A rotated glyph rather than two icons, so the open and
+       closed states cannot drift apart. */
+    .twist {
+      flex:0 0 10px; width:10px; height:10px; margin-right:2px; border:0; padding:0;
+      background:none; color:var(--ink-3); cursor:pointer; line-height:0;
+    }
+    .twist svg { width:10px; height:10px; fill:currentColor; transition:transform .12s ease; }
+    .twist[aria-expanded="false"] svg { transform:rotate(-90deg); }
+    .twist:hover { color:var(--ink); }
+    /* Section state dot. Green once a section has everything the solver needs,
+       amber when it is using a default that ought to be looked at. */
+    .dot {
+      flex:0 0 6px; width:6px; height:6px; border-radius:50%; display:inline-block;
+    }
+    .dot-ok   { background:var(--ok); }
+    .dot-warn { background:var(--warn); }
+    .dot-bad  { background:var(--bad); }
+    /* No state, no dot. A grey dot on eleven of fifteen rows is noise that
+       teaches the eye to ignore the four that mean something. The slot stays
+       reserved so labels still line up. */
+    .dot-none { background:transparent; }
+    /* Semantic node glyphs. The shape says what kind of node it is (inlet, wall,
+       mesh, run…) so the tree reads at a glance; the dot beside it still carries
+       live status. Colour is spent only where it is itself information — teal
+       flow-in at the inlet, amber flow-out at the outlet — everything structural
+       stays neutral. */
+    .tnode-ic { flex:0 0 14px; width:14px; height:14px; line-height:0; margin-left:-2px; color:var(--ink-2); }
+    .tnode-ic svg {
+      width:14px; height:14px; stroke:currentColor; fill:none;
+      stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; display:block;
+    }
+    .empty { padding:var(--s2) var(--s3); color:var(--ink-3); font-size:12px; }
+    /* First-run state: an empty tree used to just say "No projects yet", leaving
+       a signed-in user staring at a dead workbench with no usable path. This
+       offers a working sample so every tool can be tried immediately. */
+    .firstrun { padding:var(--s4) var(--s3); }
+    .firstrun-lead { margin:0 0 var(--s1); font-size:13px; font-weight:600; color:var(--ink); }
+    .firstrun-sub { margin:0 0 var(--s3); font-size:12px; line-height:1.5; color:var(--ink-2); }
+    .firstrun-note { margin:var(--s3) 0 0; font-size:11px; line-height:1.5; color:var(--ink-3); }
+    .firstrun-note b { color:var(--ink-2); font-weight:600; }
+
+    /* ── tabs ── */
+    .tabs { display:flex; gap:0; padding:0 var(--s2); border-bottom:1px solid var(--rule); background:var(--panel); }
+    .tab {
+      padding:6px var(--s3) 5px; background:none; border:0; border-bottom:2px solid transparent;
+      color:var(--ink-3); font:inherit; font-size:12px; font-weight:500;
+    }
+    .tab:hover { color:var(--ink-2); }
+    .tab.sel  { color:var(--ink); border-bottom-color:var(--accent); }
+
+    /* ── charts ── */
+    .chart-pane { padding:var(--s3); }
+    .chart { display:block; width:100%; height:160px; overflow:visible; }
+    .chart .grid  { stroke:var(--rule); stroke-width:1; }
+    .chart .axis  { fill:var(--ink-3); font-size:9px; font-family:var(--mono); }
+    .chart path   { fill:none; stroke-width:1.5; stroke-linejoin:round; stroke-linecap:round; }
+    .chart-legend { display:flex; flex-wrap:wrap; gap:var(--s3); margin-top:var(--s2); font-size:11px; }
+    /* The swatch had gap:5px AND margin-right:5px, putting it 10px from its own
+       label while entries sat 12px apart — so each swatch grouped with the wrong
+       name. vertical-align was dead too: flex items ignore it. */
+    .chart-legend span { display:inline-flex; align-items:center; gap:var(--s2); color:var(--ink-2); }
+    .swatch { display:inline-block; width:10px; height:2px; border-radius:0; flex:0 0 10px; }
+
+    /* ── comparison table ── */
+    table.cmp { width:100%; border-collapse:collapse; margin-bottom:var(--s3); }
+    table.cmp th, table.cmp td { padding:4px var(--s3); text-align:right; white-space:nowrap; }
+    table.cmp thead th { color:var(--ink-2); font-weight:500; border-bottom:1px solid var(--rule); }
+    table.cmp tbody th { text-align:left; color:var(--ink-2); font-weight:400; }
+    table.cmp tbody tr + tr th, table.cmp tbody tr + tr td { border-top:1px solid var(--rule); }
+    .good { color:var(--ok); }
+    .bad  { color:var(--bad); }
+    input.pick { width:12px; height:12px; flex:0 0 12px; margin:0; accent-color:var(--accent); }
+
+    /* ── geometry / edit panel ── */
+    .geo-head { display:flex; align-items:center; gap:var(--s2); margin-bottom:var(--s2); }
+    .geo-head .grow { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ver {
+      font-family:var(--mono); font-size:10px; padding:0 4px; border-radius:var(--r1);
+      background:var(--panel-2); border:1px solid var(--rule-strong); color:var(--ink-2);
+    }
+    .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 var(--s2); }
+    .edit-grid .field:first-child { grid-column:1 / -1; }
+
+    /* ── status pill ── */
+    .tag {
+      font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+      padding:1px 5px; border-radius:var(--r1); border:1px solid currentColor; white-space:nowrap;
+      display:inline-block;
+    }
+    .tag::before {
+      content:""; display:inline-block; width:4px; height:4px; border-radius:50%;
+      background:currentColor; margin-right:4px; vertical-align:1px;
+    }
+    .t-complete  { color:var(--ok); }
+    .t-failed    { color:var(--bad); }
+    .t-cancelled { color:var(--ink-3); }
+    .t-running, .t-meshing, .t-pending, .t-queued, .t-downloading,
+    .t-uploading_geometry, .t-processing, .t-creating_simulation, .t-cancelling {
+      color:var(--warn);
+    }
+    .t-running::before, .t-meshing::before, .t-pending::before, .t-queued::before,
+    .t-downloading::before, .t-processing::before, .t-creating_simulation::before,
+    .t-cancelling::before {
+      animation:pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ── controls ── */
+    button { font:inherit; cursor:pointer; }
+    .btn {
+      display:inline-flex; align-items:center; gap:5px; height:24px; padding:0 var(--s2);
+      background:var(--panel-2); color:var(--ink);
+      border:1px solid var(--rule-strong); border-radius:var(--r1);
+      transition:background .1s ease, border-color .1s ease;
+    }
+    .btn:hover { background:var(--rule-strong); border-color:var(--rule); }
+    .btn:active { background:var(--inset); }
+    /* .rbtn and .row both ring on focus; .btn was the one interactive element
+       that did not, so tabbing through the topbar, the sign-in card or a modal
+       showed nothing at all. Matches the input treatment rather than inventing
+       a third focus style. */
+    .btn:focus-visible {
+      outline:2px solid var(--accent-wash); outline-offset:0; border-color:var(--accent);
+    }
+        /* The app's .btn-primary gradient and border, at Workbench scale. */
+    .btn-primary {
+      background:var(--accent);
+      border:1px solid var(--accent-wash); color:var(--on-accent); font-weight:600;
+    }
+    .btn-primary:hover { background:var(--accent-strong); }
+    .btn-primary:disabled { opacity:.4; cursor:default; }
+    .btn-block { width:100%; justify-content:center; }
+        /* The app's .input-field, at Workbench height. */
+    input, select {
+      width:100%; height:24px; padding:0 var(--s2); color:var(--ink);
+      background:var(--inset); border:1px solid var(--rule-strong);
+      border-radius:var(--r1); font:inherit;
+      transition:border-color .2s ease, background .2s ease;
+    }
+    input:focus, select:focus {
+      outline:2px solid var(--accent-wash); outline-offset:0; border-color:var(--accent);
+    }
+    input[type=range] { padding:0; height:18px; accent-color:var(--accent); border:0; background:none; }
+    input[type=checkbox] { width:12px; height:12px; accent-color:var(--accent); }
+    .field { display:block; margin-bottom:var(--s2); }
+    .field > span { display:block; margin-bottom:3px; }
+    .check { display:flex; align-items:center; gap:var(--s2); margin-bottom:var(--s3); }
+
+    /* ── bottom legend bar ── */
+    .legendbar {
+      display:flex; align-items:center; justify-content:center; gap:var(--s3);
+      flex:0 0 auto; margin:0 var(--s2); padding:var(--s2) var(--s3);
+      /* Wrap rather than force a horizontal scrollbar: the fixed-width selects
+         overflowed the dock below ~795px. */
+      flex-wrap:wrap;
+      background:var(--panel); border:1px solid var(--rule); border-top:0;
+    }
+    .legendbar select { width:auto; min-width:126px; }
+    .legendbar input.rng { width:70px; }
+    .legend {
+      height:9px; width:200px; border-radius:0; border:1px solid var(--rule-strong);
+      /* design: data, this bar IS the colour map */
+      background:linear-gradient(90deg,#440154,#48186a,#3f4788,#345d8d,#2a768e,
+                                        #218e8d,#28ae7f,#5ec962,#addc30,#fde725);
+    }
+    /* Interior ticks only. The ends of the scale are already the two editable
+       inputs either side of the bar — printing them again underneath said the
+       same number twice and left the quartiles competing with the endpoints for
+       attention. Positioned rather than space-between, so the label sits over
+       the value it marks whatever set of ticks is drawn. */
+    .legend-wrap { position:relative; width:200px; }
+    .legend-ticks {
+      position:relative; height:11px; width:200px;
+      font-family:var(--mono); font-size:9px; color:var(--ink-3);
+    }
+    .legend-ticks span {
+      position:absolute; top:2px; transform:translateX(-50%); white-space:nowrap;
+    }
+    .legend-ticks i {
+      position:absolute; top:0; width:1px; height:3px; background:var(--rule-strong);
+    }
+
+    /* ── job status panel ── */
+    .jobstatus { flex:0 0 auto; border-top:1px solid var(--rule); padding:var(--s2) var(--s3); }
+    .jobstatus .bar {
+      height:3px; background:var(--inset); border-radius:var(--r1); margin:6px 0; overflow:hidden;
+    }
+    .jobstatus .bar > i { display:block; height:100%; background:var(--accent); }
+    .jobstatus .stages { font-size:11px; color:var(--ink-3); }
+
+    /* ── explanatory notes in the inspector ──
+       These carry a third of the panel height on Mesh, Result control, Wheels
+       and Analysis type. For a school team they are the point — they say what
+       each number means. But someone who already knows should be able to put
+       them away and have that stick, so they collapse and the choice persists.
+       Default is ON: the reader who needs them will not go looking. */
+    .panel-note {
+      margin:var(--s2) 0 var(--s3); padding-left:var(--s2);
+      border-left:1px solid var(--rule-strong);
+      font-size:11px; line-height:1.4; color:var(--ink-3);
+    }
+    .notes-off .panel-note { display:none; }
+    .note-toggle {
+      height:18px; padding:0 6px; font-size:10px; font-weight:600;
+      letter-spacing:.05em; text-transform:uppercase;
+      background:none; border:1px solid var(--rule-strong); border-radius:var(--r1);
+      color:var(--ink-3);
+    }
+    .note-toggle:hover { color:var(--ink-2); border-color:var(--rule); }
+    .note-toggle[aria-pressed="true"] { color:var(--accent-hi); border-color:var(--accent-wash); }
+
+    /* ── inspect pins ──
+       A dot on the surface with its value beside it. Nothing here intercepts
+       the pointer except the dismiss target, so orbiting still works with pins
+       on screen. */
+    .pin {
+      position:absolute; z-index:4; pointer-events:none;
+      transform:translate(-50%,-50%); width:9px; height:9px;
+    }
+    .pin i {
+      display:block; width:9px; height:9px; border-radius:50%;
+      background:var(--accent); border:1.5px solid var(--bg);
+    }
+    .pin b {
+      position:absolute; left:13px; top:-8px; pointer-events:auto; cursor:pointer;
+      display:block; padding:2px 6px; white-space:nowrap;
+      font-family:var(--mono); font-variant-numeric:tabular-nums;
+      font-size:11px; font-weight:400; color:var(--ink);
+      background:var(--panel); border:1px solid var(--rule-strong);
+      border-radius:var(--r1);
+    }
+    .pin b:hover { border-color:var(--bad); color:var(--bad); }
+    .viewport.inspecting { cursor:crosshair; }
+    /* Wind tunnel setup panel. Docked right, scrolls on its own, and never
+       covers the whole viewport: the point of it is to watch the box change. */
+    /* Sits exactly where the setup tree does, because it replaces it: there is
+       no simulation to configure until the tunnel this panel builds exists. */
+    .prep {
+      position:absolute; z-index:7; top:var(--s2); right:var(--s2); bottom:var(--s2);
+      width:272px; overflow:auto; padding:var(--s3);
+      border:1px solid var(--rule); border-radius:var(--r3);
+      box-shadow:var(--shadow-card);
+      display:flex; flex-direction:column; gap:var(--s3);
+    }
+    body.preparing aside.right { display:none; }
+    .prep h3 { margin:0; font-size:13px; font-weight:600; }
+    .prep .row { display:flex; align-items:center; justify-content:space-between; gap:var(--s2); }
+    .prep .row > label { color:var(--ink-2); }
+    .prep input[type=number] { width:84px; }
+    .prep .grp { display:flex; flex-direction:column; gap:6px; }
+    .prep .wheel {
+      border:1px solid var(--rule); padding:var(--s2); display:flex;
+      flex-direction:column; gap:6px;
+    }
+    .prep .wheel.active { border-color:var(--accent); background:var(--accent-wash); }
+    .prep .note { color:var(--ink-3); font-size:12px; line-height:1.4; }
+    .prep .warn { color:var(--warn); font-size:12px; line-height:1.4; }
+    .viewport.picking { cursor:copy; }
+    .navpanel {
+      position:absolute; z-index:9; top:var(--s2); left:var(--s2);
+      width:250px; padding:var(--s3);
+      display:flex; flex-direction:column; gap:var(--s3);
+      border:1px solid var(--rule); border-radius:var(--r2);
+      box-shadow:var(--shadow-card);
+    }
+    .navpanel .seg { display:flex; gap:4px; }
+    .navpanel .seg button {
+      flex:1; padding:5px 0; font:inherit; font-size:12px; font-weight:600;
+      background:none; color:var(--ink-3); cursor:pointer;
+      border:1px solid var(--rule); border-radius:var(--r1);
+    }
+    .navpanel .seg button[aria-pressed="true"] {
+      border-color:var(--accent); background:var(--accent-wash); color:var(--accent);
+    }
+    .navpanel .row { display:flex; align-items:center; justify-content:space-between; gap:var(--s2); }
+    .navpanel dl { display:grid; grid-template-columns:auto 1fr; gap:2px var(--s2); margin:0; }
+    .navpanel dt { color:var(--ink-3); font-size:11px; }
+    .navpanel dd { margin:0; font-size:11px; font-family:var(--mono); color:var(--ink-2); }
+    .facemenu {
+      position:absolute; z-index:9; min-width:210px; padding:4px;
+      border:1px solid var(--rule); border-radius:var(--r2);
+      box-shadow:var(--shadow-card);
+    }
+    .facemenu button {
+      display:block; width:100%; text-align:left; background:none; border:0;
+      color:var(--ink); font:inherit; padding:5px 8px; cursor:pointer;
+    }
+    .facemenu button:hover:not(:disabled) { background:var(--accent-wash); }
+    .facemenu button:disabled { color:var(--ink-3); cursor:default; }
+    .facemenu hr { border:0; border-top:1px solid var(--rule); margin:4px 0; }
+    .facemenu .eyebrow { display:block; padding:4px 8px 2px; }
+    .viewport.walldrag { cursor:move; }
+
+    /* ── statistics panel ── */
+    .stats {
+      position:absolute; right:var(--s3); bottom:var(--s3); width:222px; padding:var(--s3);
+      background:var(--panel); border:1px solid var(--rule); border-radius:var(--r3);
+      box-shadow:var(--shadow-card);
+    }
+    .stats dl { display:grid; grid-template-columns:auto 1fr; gap:3px var(--s3); margin:var(--s2) 0 0; }
+    .stats dt { color:var(--ink-2); }
+    .stats dd { margin:0; text-align:right; }
+    .stats .note { margin:var(--s2) 0 0; font-size:11px; color:var(--ink-3); }
+
+    /* ── results readout ──
+       Hard width cap. Unwrapped explanatory lines were stretching this card to
+       623px — 54% of the viewport, sitting exactly on top of the car. A result
+       panel that hides the result is worse than no panel. */
+    .readout {
+      /* Floats clear of the left tree panel (246px + gaps) so both read as
+         separate cards on the scene rather than stacking on the same corner. */
+      position:absolute; left:calc(266px + var(--s2) + var(--s3)); top:calc(var(--s2) + 66px);
+      width:232px; max-width:calc(100% - var(--s5)); padding:var(--s3); z-index:4;
+      background:var(--panel); border:1px solid var(--rule); border-radius:var(--r3);
+      box-shadow:var(--shadow-card);
+      max-height:calc(100% - 80px); overflow-y:auto;
+    }
+    .readout p { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+    /* The two honest caveats — not converged, drifting trace — must stay, but
+       as a quiet note rather than two paragraphs of red. */
+    .readout .caveat {
+      margin:var(--s2) 0 0; padding-left:var(--s2); font-size:11px; line-height:1.35;
+      border-left:2px solid var(--warn); color:var(--ink-2);
+    }
+    .readout .caveat.bad { border-left-color:var(--bad); }
+    .readout .basis { margin:var(--s2) 0 0; font-size:11px; color:var(--ink-3); line-height:1.35; }
+    .metrics { display:grid; grid-template-columns:auto 1fr; gap:3px var(--s3); margin-top:var(--s2); }
+    .metrics dt { color:var(--ink-2); }
+    .metrics dd { margin:0; text-align:right; }
+    .err {
+      margin:var(--s2) 0 0; padding:var(--s2); border-radius:var(--r1);
+      background:var(--accent-wash); border:1px solid var(--bad);
+      color:var(--bad); font-size:12px; max-width:320px; max-height:96px; overflow:auto;
+    }
+
+    /* ── sign-in ── */
+    .gate { height:100%; display:grid; place-items:center; }
+    .gate .card { width:320px; padding:var(--s6); text-align:center; }
+    .gate h1 { margin:0 0 6px; font-size:16px; font-weight:650; letter-spacing:-0.015em; }
+    .gate p { margin:0 0 var(--s5); color:var(--ink-2); }
+    /* ── boot splash ── Covers the gap between load and a decided session. The
+       gate is markup, so without this a signed-in user sees the sign-in card
+       flash before getSession() resolves, then an empty shell while refresh()
+       fetches five tables. */
+    .boot {
+      position:fixed; inset:0; z-index:70; background:var(--bg);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s3);
+    }
+    .boot .spin {
+      width:22px; height:22px; border:2px solid var(--rule-strong);
+      border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .boot p { margin:0; color:var(--ink-2); font-size:12px; }
+    .gate-or { display:flex; align-items:center; gap:var(--s2); margin:var(--s3) 0; color:var(--ink-2); }
+    .gate-or::before, .gate-or::after { content:""; flex:1; height:1px; background:var(--rule); }
+
+    .toast {
+      position:fixed; right:var(--s3); bottom:var(--s3); max-width:420px;
+      padding:var(--s2) var(--s3); z-index:50;
+    }
+    /* ── modal ── replaces prompt()/confirm(), which render as browser chrome
+       ("localhost:5500 says") in the middle of a styled page. */
+    .modal-back { position:fixed; inset:0; background:var(--scrim); display:grid; place-items:center; z-index:60; }
+    .modal { width:340px; padding:var(--s4); }
+    .modal h2 { margin:0 0 var(--s2); font-size:13px; font-weight:650; letter-spacing:-0.01em; }
+    .modal p { margin:0 0 var(--s3); color:var(--ink-2); white-space:pre-line; }
+    .modal-row { display:flex; gap:var(--s2); justify-content:flex-end; margin-top:var(--s4); }
+    .modal-row .btn { width:auto; padding:0 var(--s3); }
+    /* Stale-build chip. Sits in the topbar, does nothing until the file on the
+       server is newer than the one this tab loaded. */
+    .stale {
+      display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 var(--s2);
+      background:var(--accent-wash); border:1px solid var(--accent-wash); border-radius:var(--r1);
+      color:var(--accent-hi); font-size:11px; cursor:pointer;
+    }
+    .stale:hover { background:var(--rule-strong); }
+    .stale::before {
+      content:""; width:5px; height:5px; border-radius:50%; background:var(--accent-hi);
+      animation:pulse 1.8s ease-in-out infinite;
+    }
+    /* One interaction model, applied to every surface control rather than the
+       three it happened to reach before. .tab, .twist, .note-toggle and .stale
+       were keyboard-reachable with no visible focus at all. */
+    :where(.tab, .twist, .note-toggle, .stale):focus-visible {
+      outline:1px solid var(--accent); outline-offset:-1px;
+    }
+    /* Press feedback: nothing acknowledged a click until the state flipped, which
+       on a slow field fetch is several hundred ms of "did that register?". */
+    .rbtn:active:not(:disabled), .tab:active, .note-toggle:active { background:var(--inset); }
+    /* The status colour already carries the meaning, so the pulse is decoration —
+       and a busy runs table pulses a dozen dots at once. */
+    @media (prefers-reduced-motion:reduce) {
+      *, *::before, *::after {
+        animation-duration:.01ms !important; animation-iteration-count:1 !important;
+        transition-duration:.01ms !important;
+      }
+    }
+    ::-webkit-scrollbar { width:9px; height:9px; }
+    ::-webkit-scrollbar-thumb { background:var(--ink-4); border:3px solid var(--panel); border-radius:var(--r1); }
+    ::-webkit-scrollbar-thumb:hover { background:var(--ink-3); }
+    ::-webkit-scrollbar-track { background:transparent; }
+
+    /* ── 3D-first layout ──────────────────────────────────────────────────────
+       Modelled on SimScale: the 3D viewport is the whole workspace, one
+       continuous scene, and every panel FLOATS on top of it as a card rather
+       than dividing the window into columns. */
+    .workspace { position:relative; }
+    main { position:absolute; inset:0; display:block; min-width:0; }
+    .viewport {
+      position:absolute; inset:0; margin:0;
+      border:0; border-radius:0;
+    }
+    /* Side panels float over the scene. */
+    aside.left, aside.right {
+      position:absolute; top:var(--s2); bottom:var(--s2); z-index:6;
+      border-radius:var(--r3); overflow:hidden;
+      box-shadow:var(--shadow-card);
+    }
+    /* Toolbar floats over the scene, centred at the top, matching the side
+       panels rather than dividing the window with a solid bar. The workspace
+       reclaims its vertical space, so the 3D scene runs unbroken beneath it. */
+    .app { position:relative; }
+    .ribbon {
+      position:absolute; z-index:7; top:calc(38px + var(--s2));
+      left:50%; transform:translateX(-50%);
+      height:auto; flex:0 0 auto; overflow:visible;
+      padding:var(--s1) var(--s2); align-items:center;
+      background:var(--panel);
+      border:1px solid var(--rule); border-radius:var(--r3);
+      box-shadow:var(--shadow-card);
+    }
+    aside.left  { left:var(--s2);  border:1px solid var(--rule); border-right:1px solid var(--rule); }
+    aside.right { right:var(--s2); border:1px solid var(--rule); border-left:1px solid var(--rule); }
+    /* Results dock floats at the bottom, spanning between the two side panels. */
+    .dock-bottom {
+      position:absolute; z-index:5; bottom:var(--s2);
+      left:calc(266px + var(--s2) * 2);
+      right:calc(272px + var(--s2) * 2);
+      display:flex; flex-direction:column; align-items:stretch; pointer-events:none;
+    }
+    .dock-bottom > * { pointer-events:auto; }
+    .dock-bottom .legendbar {
+      border:1px solid var(--rule); border-bottom:0;
+      border-radius:var(--r3) var(--r3) 0 0;
+      box-shadow:var(--shadow-dock);
+    }
+    .dock-bottom .runs {
+      margin:0; border:1px solid var(--rule); border-radius:0 0 var(--r3) var(--r3);
+      box-shadow:var(--shadow-card);
+    }
+    /* When the legend bar is hidden the runs table should round its own top. */
+    .dock-bottom #post.hidden + .runs { border-radius:var(--r3); }
+  </style>
+  <script>
+    // Theme before first paint, and the same key the rest of the site uses, so
+    // a choice made in the app is already in force when the Workbench opens.
+    try {
+      var t = localStorage.getItem("turboflow-theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+</head>
+<body class="overflow-hidden">
+
+<div id="boot" class="boot" role="status" aria-live="polite">
+  <div class="spin"></div>
+  <p>Loading workbench…</p>
+</div>
+
+<!-- Starts hidden: boot() decides between this and the app, and showing it
+     unconditionally means signed-in users see a sign-in card they never needed. -->
+<div id="gate" class="gate hidden">
+  <!-- The Workbench is a TurboFlow page, not a separate application, so it does
+       not have a sign-in of its own. This is the same Google sign-in the rest of
+       the site uses, against the same session: sign in anywhere and you are
+       signed in here. The email and password form that used to sit here is gone
+       — Google is the only way in. -->
+  <div class="card">
+    <h1>TurboFlow Workbench</h1>
+    <p>Sign in to open your projects.</p>
+    <button class="btn btn-primary btn-block" onclick="signIn()">Continue with Google</button>
+    <p class="muted" style="margin-top:14px;font-size:12px">
+      <a href="/" style="color:inherit">Back to TurboFlow</a>
+    </p>
+  </div>
+</div>
+
+<div id="modal" class="modal-back hidden">
+  <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle"></h2>
+    <p id="modalBody"></p>
+    <input id="modalInput" class="hidden">
+    <div class="modal-row">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <!-- The brand goes home, as it does on every other page. Without it the
+         Workbench is a dead end: it has no site nav of its own, so the only
+         way back was to edit the address bar. -->
+    <a class="brand" href="/" title="Back to TurboFlow"
+       style="color:inherit;text-decoration:none"><b>TurboFlow</b><span>Workbench</span></a>
+    <span class="spacer"></span>
+    <button id="stale" class="stale hidden" onclick="location.reload()"
+            title="This tab is running an older build than the server has">New build: reload</button>
+    <span id="credits" class="num muted"></span>
+    <button class="btn" onclick="newProject()">New project</button>
+    <button id="autoBtn" class="btn btn-primary" onclick="startPrepare()">Automatic CFD</button>
+    <button class="btn" onclick="signOutNow()">Sign out</button>
+  </header>
+
+  <!-- Ribbon. Every button here does something real today; anything that cannot
+       yet act on the scene (streamlines, iso-volume, animation) is deliberately
+       absent rather than disabled — see WORKPLAN rule 3. -->
+  <nav class="ribbon" aria-label="Post-processing tools">
+    <div class="rgroup">
+      <div class="rgroup-row">
+        <button class="rbtn" id="rbClip" aria-pressed="false" onclick="ribbonClip()" title="Cut the model on an axis-aligned plane">
+          <svg viewBox="0 0 16 16"><path d="M2 11 8 14 14 11 8 8z"/><path d="M2 5.5 8 2.5 14 5.5 8 8.5z" opacity=".45"/><path d="M1.5 8h13" stroke-dasharray="2 2"/></svg>
+          Cutting plane</button>
+      </div>
+      <div class="rgroup-label">Filters</div>
+    </div>
+    <div class="rgroup">
+      <div class="rgroup-row">
+        <button class="rbtn" id="rbLegend" aria-pressed="true" onclick="ribbonLegend()" title="Show or hide the field and colour controls">
+          <svg viewBox="0 0 16 16"><rect x="2" y="6.5" width="12" height="3"/><path d="M4.5 6.5v3M8 6.5v3M11.5 6.5v3"/></svg>
+          Legend</button>
+        <button class="rbtn" id="rbStats" aria-pressed="false" onclick="ribbonStats()" title="Min, max, mean and spread of the current field">
+          <svg viewBox="0 0 16 16"><path d="M2.5 13.5v-5M6.2 13.5v-9M9.8 13.5v-6.5M13.5 13.5v-11"/></svg>
+          Statistics</button>
+        <button class="rbtn" id="rbInspect" aria-pressed="false" onclick="ribbonInspect()" title="Click the surface to read the field value there">
+          <svg viewBox="0 0 16 16"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3"/><circle cx="8" cy="8" r="3.1"/></svg>
+          Inspect</button>
+        <button class="rbtn" id="rbWire" aria-pressed="false" onclick="ribbonWire()" title="Wireframe">
+          <svg viewBox="0 0 16 16"><path d="M2 11.5 8 14.5 14 11.5 14 4.5 8 1.5 2 4.5z"/><path d="M2 4.5 8 7.5 14 4.5M8 7.5V14.5"/></svg>
+          Wireframe</button>
+        <button class="rbtn" id="rbNav" aria-pressed="false" onclick="ribbonNav()"
+                title="Mouse controls and selection">
+          <svg viewBox="0 0 16 16"><path d="M8 1.5v13M1.5 8h13"/><circle cx="8" cy="8" r="3.2"/></svg>
+          Controls</button>
+      </div>
+      <div class="rgroup-label">Display</div>
+    </div>
+    <div class="rgroup">
+      <div class="rgroup-row">
+        <button class="rbtn" id="rbCompare" aria-pressed="false" onclick="ribbonCompare()" title="Side-by-side table of the ticked runs">
+          <svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="5.5" height="10"/><rect x="9" y="3" width="5.5" height="10"/></svg>
+          Compare</button>
+      </div>
+      <div class="rgroup-label">Compare</div>
+    </div>
+    <div class="rgroup">
+      <div class="rgroup-row">
+        <button class="rbtn" onclick="saveShot()" title="Download a PNG of the viewport">
+          <svg viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="9.5" rx="1"/><circle cx="8" cy="8.75" r="2.6"/><path d="M5.5 4 6.5 2.5h3L10.5 4"/></svg>
+          Screenshot</button>
+      </div>
+      <div class="rgroup-label">Capture</div>
+    </div>
+    <div class="rgroup">
+      <div class="rgroup-row">
+        <button class="rbtn" onclick="ribbonReset()" title="Reset camera, colour range, cutting plane and wireframe">
+          <svg viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.8v2.7h-2.7"/></svg>
+          Reset</button>
+      </div>
+      <div class="rgroup-label">Result</div>
+    </div>
+  </nav>
+
+  <div class="workspace">
+    <aside class="left">
+      <div id="tree" class="body"></div>
+      <!-- Job status, bottom-left like SimScale's. Progress is the position in
+           the real status sequence the worker walks, not an animation. -->
+      <div id="jobstatus" class="jobstatus hidden"></div>
+    </aside>
+
+    <main>
+      <section class="viewport">
+        <canvas id="canvas"></canvas>
+        <div id="viewer"></div>
+        <div id="viewerHint" class="viewport-hint">
+          <p>Select a simulation to view its geometry.</p>
+        </div>
+
+        <!-- Cutting-plane control appears when the ribbon toggles it on. -->
+        <div id="clipCtl" class="card hidden" style="position:absolute;left:var(--s4);bottom:var(--s4);
+             display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3)">
+          <span class="eyebrow">Cut</span>
+          <select id="clipAxis" style="width:60px" onchange="applyClip()" aria-label="Cutting plane axis">
+            <option value="">Off</option><option value="x">X</option><option value="y">Y</option><option value="z">Z</option>
+          </select>
+          <input id="clipT" type="range" min="0" max="1" step="0.01" value="1" style="width:120px" oninput="applyClip()" aria-label="Cutting plane position">
+        </div>
+
+        <!-- Field statistics, toggled from the ribbon. Real numbers from the
+             field buffer on screen, labelled with exactly what they are. -->
+        <div id="statsPanel" class="card stats hidden"></div>
+
+        <!-- Inspect-point pins. Positioned in viewport pixels, repositioned on
+             every camera change. -->
+        <div id="pins" style="position:absolute;inset:0;pointer-events:none"></div>
+
+        <!-- Wind tunnel setup. Shown only while preparing a raw car, and it
+             takes over the viewport: the car is on screen with its faces
+             clickable and the tunnel box draggable behind this panel. -->
+        <div id="prepPanel" class="card prep hidden"></div>
+
+        <!-- Right-click menu over the model while picking wheel faces. The
+             options are SimScale's, because that is what people arrive knowing:
+             grow the selection across a smooth join, across equal faces, or
+             reach a face hidden behind another. -->
+        <div id="faceMenu" class="card facemenu hidden"></div>
+
+        <!-- Mouse bindings and selection mode. Every CAD package binds these
+             differently and muscle memory does not transfer, so it is a
+             setting rather than a decision made for the user. -->
+        <div id="navPanel" class="card navpanel hidden"></div>
+
+      </section>
+
+      <!-- Results dock: the field/legend bar and the runs table, floating over
+           the 3D scene at the bottom rather than boxed below it. -->
+      <div class="dock-bottom">
+      <!-- Bottom legend bar, SimScale-style, shown when a run has fields. -->
+      <div id="post" class="legendbar hidden">
+        <label style="display:flex;align-items:center;gap:var(--s2)">
+          <span class="eyebrow">Field</span>
+          <select id="fieldSel" onchange="loadField()"></select>
+        </label>
+        <input id="legMin" class="num rng" onchange="applyRange()" title="Colour range minimum">
+        <div class="legend-wrap">
+          <div id="legendBar" class="legend"></div>
+          <div id="legendTicks" class="legend-ticks"></div>
+        </div>
+        <input id="legMax" class="num rng" onchange="applyRange()" title="Colour range maximum">
+        <button class="btn" style="height:24px;padding:0 8px" onclick="resetRange()" title="Back to the field's own min and max">Auto</button>
+        <select id="cmapSel" style="min-width:104px" onchange="applyColourMap()" title="Colour map">
+          <option value="viridis">Viridis</option>
+          <option value="coolwarm">Cool–warm</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="greyscale">Greyscale</option>
+        </select>
+        <select id="bandSel" style="min-width:104px" onchange="applyColourMap()"
+                title="Quantise the scale into contour bands to show where the gradient is">
+          <option value="0">Smooth</option>
+          <option value="8">8 bands</option>
+          <option value="12">12 bands</option>
+          <option value="16">16 bands</option>
+          <option value="24">24 bands</option>
+        </select>
+      </div>
+
+      <section class="card runs">
+        <div class="tabs" role="tablist">
+          <button class="tab sel" data-tab="runs"  onclick="setTab('runs')">Runs</button>
+          <button class="tab"     data-tab="conv"  onclick="setTab('conv')">Convergence</button>
+          <button class="tab"     data-tab="force" onclick="setTab('force')">Forces</button>
+          <button class="tab"     data-tab="cmp"   onclick="setTab('cmp')">Compare <span id="cmpCount" class="num muted"></span></button>
+        </div>
+        <div id="runs"  class="runs-body"></div>
+        <div id="conv"  class="runs-body chart-pane hidden"></div>
+        <div id="force" class="runs-body chart-pane hidden"></div>
+        <div id="cmp"   class="runs-body chart-pane hidden"></div>
+      </section>
+      </div><!-- /dock-bottom -->
+    </main>
+
+    <aside class="right">
+      <div class="pane-head">
+        <span id="inspTitle" class="eyebrow">Simulation setup</span>
+        <span style="display:flex;align-items:center;gap:var(--s2)">
+          <span id="inspDirty" class="num muted"></span>
+          <button id="noteToggle" class="note-toggle" aria-pressed="true"
+                  onclick="toggleNotes()" title="Show or hide the explanations">Notes</button>
+        </span>
+      </div>
+      <div class="body" style="padding:0 var(--s4)">
+        <p id="inspSub" class="muted" style="margin:0 0 var(--s3);font-size:12px"></p>
+        <div id="insp"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="toast" class="card toast hidden" role="status" aria-live="polite"></div>
+</div>
+
+<input id="stepInput"  type="file" accept=".step,.stp" class="hidden" />
+<input id="labelInput" type="file" accept=".csv"       class="hidden" />
+
+<!-- 3D viewer. The .glb comes from the tessellation service (OCC), because a
+     browser cannot triangulate a STEP file on its own. -->
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { createViewCube } from "./wb-viewcube.js";
+
+const canvas = document.getElementById("canvas");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 5000);
+const controls = new OrbitControls(camera, canvas);
+
+// ── navigation ───────────────────────────────────────────────────────────────
+// Damping was on, which is why the viewport felt like it was floating: the
+// camera kept moving after the mouse stopped and every drag ended in a glide.
+// A CAD viewer should stop when the hand stops. SimScale's does, and so does
+// Fusion. Off by default, and a preference for anyone who wants it back.
+//
+// The button assignments are a preference too, because every CAD package
+// picks different ones and muscle memory does not transfer. The presets are
+// the real bindings from each, not an invention:
+//
+//   SimScale    rotate left, pan middle or ctrl+left, zoom right or wheel
+//   Fusion 360  pan middle, rotate shift+middle, zoom wheel
+//   Onshape     rotate right, pan ctrl+right, zoom wheel
+//
+// three's OrbitControls maps one action per physical button, so the modifier
+// variants are handled in the pointer handler below rather than here.
+const NAV_PRESETS = {
+  simscale: {
+    label: "SimScale",
+    buttons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY },
+    ctrlLeft: "PAN", altLeft: "DOLLY",
+  },
+  fusion: {
+    label: "Fusion 360",
+    buttons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN },
+    ctrlLeft: "PAN", altLeft: null,
+  },
+  onshape: {
+    label: "Onshape",
+    buttons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE },
+    ctrlLeft: "PAN", altLeft: null,
+  },
+};
+
+const NAV_DEFAULTS = { preset: "simscale", damping: false, invertZoom: false, speed: 1 };
+let nav = { ...NAV_DEFAULTS };
+try {
+  nav = { ...NAV_DEFAULTS, ...JSON.parse(localStorage.getItem("turboflow-nav") || "{}") };
+} catch (e) { /* first run, or storage refused */ }
+
+function applyNav() {
+  const preset = NAV_PRESETS[nav.preset] || NAV_PRESETS.simscale;
+  controls.mouseButtons = { ...preset.buttons };
+  controls.enableDamping = !!nav.damping;
+  controls.dampingFactor = 0.12;
+  // Direct rather than languid. The defaults are tuned for orbiting a scene,
+  // not for inspecting a part you are about to pay to solve.
+  controls.rotateSpeed = 0.9 * nav.speed;
+  controls.panSpeed = 1.0 * nav.speed;
+  controls.zoomSpeed = (nav.invertZoom ? -1 : 1) * 1.2 * nav.speed;
+  controls.zoomToCursor = true;
+  controls.screenSpacePanning = true;
+  controls.update();
+}
+applyNav();
+
+window.navSettings = () => ({ ...nav, presets: Object.entries(NAV_PRESETS).map(([k, v]) => [k, v.label]) });
+window.setNav = (patch) => {
+  nav = { ...nav, ...patch };
+  try { localStorage.setItem("turboflow-nav", JSON.stringify(nav)); } catch (e) {}
+  applyNav();
+  return { ...nav };
+};
+
+// Modifier variants, which OrbitControls cannot express on its own. Swapping
+// the left button's job before the control sees the event is what lets
+// ctrl+left pan and alt+left zoom the way every CAD package does it.
+canvas.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  const preset = NAV_PRESETS[nav.preset] || NAV_PRESETS.simscale;
+  const want = ev.ctrlKey || ev.metaKey ? preset.ctrlLeft : ev.altKey ? preset.altLeft : null;
+  controls.mouseButtons.LEFT = want ? THREE.MOUSE[want] : preset.buttons.LEFT;
+}, true);
+canvas.addEventListener("pointerup", () => {
+  const preset = NAV_PRESETS[nav.preset] || NAV_PRESETS.simscale;
+  controls.mouseButtons.LEFT = preset.buttons.LEFT;
+});
+
+// Right-drag to zoom means the browser menu has to stay out of the way.
+canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
+// Studio lighting for a white ground: bright sky, warm-grey bounce off the
+// "floor" rather than near-black. On a dark background the old ground colour
+// read as shadow; on paper it reads as a hole under the car.
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd6d4ce, 1.35));
+const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(2, 3, 4); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.35); fill.position.set(-3, -2, 1); scene.add(fill);
+let current = null;
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+const viewCube = createViewCube({
+  camera, controls, container: canvas.parentElement, size: 92,
+});
+window.viewCube = viewCube;
+// Draw when something changed, not sixty times a second regardless. A viewer
+// that repaints an idle scene forever keeps a laptop fan running through a
+// meeting, and on a machine already busy it is what makes a drag feel late:
+// the frame you are waiting for is queued behind frames nobody asked for.
+let needsDraw = true;
+window.requestDraw = () => { needsDraw = true; };
+controls.addEventListener("change", window.requestDraw);
+addEventListener("resize", window.requestDraw);
+
+(function loop() {
+  requestAnimationFrame(loop);
+  resize();
+  // Damping keeps moving after the input stops, so while it is on the loop has
+  // to keep asking whether it has settled.
+  if (controls.enableDamping) { controls.update(); needsDraw = true; }
+  if (!needsDraw) return;
+  needsDraw = false;
+  controls.update();
+  renderer.render(scene, camera);
+  viewCube.update();                  // drawn after, into its own canvas
+})();
+
+// ── field colouring ──────────────────────────────────────────────────────────
+// Fields arrive as a raw Float32Array, one value per vertex, separate from the
+// glb (see export_results_for_viewer in the worker). That means switching field
+// re-uploads one attribute instead of refetching geometry, and the colour map is
+// evaluated in the fragment shader rather than baked into vertex colours.
+const CLIP = new THREE.Plane(new THREE.Vector3(-1, 0, 0), Infinity);
+renderer.localClippingEnabled = true;
+
+// Viridis, sampled. Perceptually uniform and readable for anyone colour-blind,
+// which rainbow — the CFD default — is not.
+const VIRIDIS = [
+  [0.267,0.005,0.329],[0.283,0.141,0.458],[0.254,0.265,0.530],[0.207,0.372,0.553],
+  [0.164,0.471,0.558],[0.128,0.567,0.551],[0.135,0.659,0.518],[0.267,0.749,0.441],
+  [0.478,0.821,0.318],[0.741,0.873,0.150],[0.993,0.906,0.144]];
+
+// Rainbow is kept because it is what every CFD tool defaults to and reviewers
+// expect to see it, not because it is a good colour map — it invents banding
+// that is not in the data. Coolwarm is the right choice for anything centred on
+// zero, like a pressure coefficient.
+const COLOUR_MAPS = {
+  viridis: VIRIDIS,
+  coolwarm: [
+    [0.230,0.299,0.754],[0.406,0.537,0.934],[0.603,0.731,0.999],[0.788,0.855,0.937],
+    [0.932,0.900,0.858],[0.968,0.800,0.700],[0.958,0.647,0.525],[0.900,0.474,0.365],
+    [0.800,0.303,0.240],[0.706,0.016,0.150],[0.706,0.016,0.150]],
+  rainbow: [
+    [0.000,0.000,0.500],[0.000,0.000,1.000],[0.000,0.500,1.000],[0.000,1.000,1.000],
+    [0.300,1.000,0.700],[0.700,1.000,0.300],[1.000,1.000,0.000],[1.000,0.700,0.000],
+    [1.000,0.300,0.000],[0.800,0.000,0.000],[0.500,0.000,0.000]],
+  greyscale: Array.from({ length: 11 }, (_, i) => [i / 10, i / 10, i / 10]),
+};
+let activeMap = "viridis";
+
+function fieldMaterial() {
+  return new THREE.ShaderMaterial({
+    clippingPlanes: [CLIP], clipping: true, side: THREE.DoubleSide,
+    uniforms: {
+      uMin: { value: 0 }, uMax: { value: 1 }, uHasField: { value: 0 },
+      uRamp: { value: COLOUR_MAPS[activeMap].flatMap((c) => c) },
+      uWire: { value: 0 },
+      uBands: { value: 0 },        // 0 = continuous ramp
+      uSelFace: { value: -1 },     // highlighted face group, -1 = none
+      uLight: { value: new THREE.Vector3(0.4, 0.7, 0.6).normalize() },
+    },
+    vertexShader: `
+      attribute float aField;
+      attribute float aFace;
+      // Which faces the user has marked as a wheel. A per-vertex flag rather
+      // than a uniform list, because a wheel can be a dozen trimmed faces and
+      // the list would have to be sized for the worst car anyone ever uploads.
+      attribute float aPick;
+      varying float vT; varying vec3 vN; varying float vFace; varying float vPick;
+      uniform float uMin, uMax;
+      #include <clipping_planes_pars_vertex>
+      void main() {
+        vT = clamp((aField - uMin) / max(uMax - uMin, 1e-9), 0.0, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vFace = aFace;
+        vPick = aPick;
+        // Must be named mvPosition: <clipping_planes_vertex> is a three.js
+        // chunk that expands to "vClipPosition = -mvPosition.xyz" and expects
+        // that exact identifier in scope. Calling it anything else fails to
+        // compile the whole vertex shader: three then swaps in its error
+        // material and the surface silently stops drawing, so field colouring
+        // and the cutting plane never render and only the console says why.
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        #include <clipping_planes_vertex>
+        gl_Position = projectionMatrix * mvPosition;
+      }`,
+    fragmentShader: `
+      precision highp float;
+      varying float vT; varying vec3 vN; varying float vFace; varying float vPick;
+      uniform float uRamp[33]; uniform float uHasField; uniform vec3 uLight;
+      uniform float uBands; uniform float uSelFace;
+      #include <clipping_planes_pars_fragment>
+      vec3 ramp(float t) {
+        float x = t * 10.0; int i = int(floor(x)); float f = fract(x);
+        if (i > 9) { i = 9; f = 1.0; }
+        vec3 a = vec3(uRamp[i*3], uRamp[i*3+1], uRamp[i*3+2]);
+        vec3 b = vec3(uRamp[i*3+3], uRamp[i*3+4], uRamp[i*3+5]);
+        return mix(a, b, f);
+      }
+      void main() {
+        #include <clipping_planes_fragment>
+        // Contour bands. A continuous ramp shows the value everywhere and the
+        // GRADIENT nowhere. Quantising to N steps turns the rate of change
+        // into visible contour lines, which is where separation and stagnation
+        // show up. Sampling each band's centre keeps the colours the ones on
+        // the legend rather than the boundaries between them.
+        float t = vT;
+        if (uBands > 0.5) t = (floor(vT * uBands) + 0.5) / uBands;
+        // Unfielded geometry is a mid neutral grey: dark enough to read as a
+        // solid, neutral enough not to be mistaken for a field value.
+        vec3 base = uHasField > 0.5 ? ramp(t) : vec3(0.58, 0.59, 0.62);
+        float lambert = 0.45 + 0.55 * max(dot(normalize(vN), uLight), 0.0);
+        vec3 lit = base * lambert;
+        // Selected face group. Tinted toward the accent rather than replaced,
+        // so the field is still readable underneath, you need to see WHICH
+        // face you picked and what the pressure on it is at the same time.
+        if (uSelFace >= 0.0 && abs(vFace - uSelFace) < 0.5) {
+          lit = mix(lit, vec3(0.231, 0.510, 0.965), 0.45);
+        }
+        // A marked wheel face. Amber, not the accent, so it cannot be confused
+        // with the single face under the pointer.
+        if (vPick > 0.5) lit = mix(lit, vec3(1.0, 0.784, 0.188), 0.55);
+        gl_FragColor = vec4(lit, 1.0);
+      }`,
+  });
+}
+
+let meshes = [], bounds = null;
+
+// Distance at which the model's bounding sphere just fills the frame.
+// Hand-picked multipliers were leaving the car at about a quarter of the
+// viewport — fine for a cube, wrong for a body that is three times longer than
+// it is tall. The binding constraint is whichever field of view is narrower:
+// on a wide viewport that is the vertical one, on a tall one the horizontal.
+function fitDistance(size) {
+  const r = 0.5 * Math.hypot(size.x, size.y, size.z);
+  const vFov = (camera.fov * Math.PI) / 180;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * (camera.aspect || 1));
+  return (r / Math.sin(Math.min(vFov, hFov) / 2)) * 1.08;   // 8% breathing room
+}
+
+function frame(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
+  model.position.sub(centre);
+  const span = Math.max(size.x, size.y, size.z) || 1;
+  const dist = fitDistance(size);
+  camera.position.copy(new THREE.Vector3(...VIEWS.iso).normalize().multiplyScalar(dist));
+  camera.up.set(0, 0, 1);
+  camera.near = dist / 200; camera.far = dist * 50; camera.updateProjectionMatrix();
+  controls.target.set(0, 0, 0); controls.update();
+  bounds = { span, dist, min: box.min.clone().sub(centre), max: box.max.clone().sub(centre) };
+  CLIP.constant = Infinity;
+  window.dispatchEvent(new CustomEvent("model-bounds", { detail: bounds }));
+}
+
+// Frame the model however big the car happens to be — chord lengths vary.
+window.renderGlb = async function (url) {
+  if (current) { scene.remove(current); current.traverse?.((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); current = null; }
+  meshes = [];
+  document.getElementById("viewerHint").classList.toggle("hidden", !!url);
+  if (!url) return;
+  const gltf = await new GLTFLoader().loadAsync(url);
+  const model = gltf.scene;
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.computeVertexNormals();
+    // _FACEID is what the tessellation service emits per vertex, naming the
+    // B-rep face each triangle came from.
+    //
+    // GLTFLoader lowercases any attribute it does not have a mapping for, so
+    // `_FACEID` in the file arrives as `_faceid` on the geometry. Look for both
+    // rather than betting on one: the exporter's spelling and the loader's are
+    // not the same string, and getting it wrong fails silently — every vertex
+    // reads face 0 and picking appears to work while selecting nothing.
+    const fid = o.geometry.getAttribute("_faceid")
+             || o.geometry.getAttribute("_FACEID")
+             || Object.entries(o.geometry.attributes)
+                  .find(([k]) => k.toLowerCase() === "_faceid")?.[1];
+    if (fid) o.geometry.setAttribute("aFace", fid);
+    else o.geometry.setAttribute("aFace",
+      new THREE.BufferAttribute(new Float32Array(o.geometry.attributes.position.count), 1));
+    o.geometry.setAttribute("aPick",
+      new THREE.BufferAttribute(new Float32Array(o.geometry.attributes.position.count), 1));
+    o.material = fieldMaterial();
+    meshes.push(o);
+  });
+  frame(model);
+  scene.add(model); current = model;
+};
+
+// Attach a downloaded field to the geometry currently on screen.
+window.applyField = function (values, min, max) {
+  for (const m of meshes) {
+    const n = m.geometry.attributes.position.count;
+    if (!values || values.length < n) {
+      m.material.uniforms.uHasField.value = 0;
+      continue;
+    }
+    m.geometry.setAttribute("aField", new THREE.BufferAttribute(values.subarray(0, n), 1));
+    m.material.uniforms.uMin.value = min;
+    m.material.uniforms.uMax.value = max;
+    m.material.uniforms.uHasField.value = 1;
+  }
+};
+
+// Cutting plane: t in [0,1] along an axis, or null to switch it off.
+// three keeps the half-space where normal·p + constant > 0, so a normal of -axis
+// with constant d keeps everything below d on that axis.
+window.setClip = function (axis, t) {
+  if (!bounds || t == null) { CLIP.constant = Infinity; return; }
+  CLIP.normal.set(axis === "x" ? -1 : 0, axis === "y" ? -1 : 0, axis === "z" ? -1 : 0);
+  CLIP.constant = bounds.min[axis] + (bounds.max[axis] - bounds.min[axis]) * t;
+};
+
+// Rescale the colour ramp without refetching the field. Clipping the range to
+// the interesting band is most of post-processing: a single stagnation point at
+// +234 Pa flattens the whole rest of the car to one colour on the auto range.
+window.setRange = function (min, max) {
+  if (!isFinite(min) || !isFinite(max) || max <= min) return false;
+  for (const m of meshes) { m.material.uniforms.uMin.value = min; m.material.uniforms.uMax.value = max; }
+  return true;
+};
+
+window.setColourMap = function (name) {
+  if (!COLOUR_MAPS[name]) return;
+  activeMap = name;
+  const ramp = COLOUR_MAPS[name].flatMap((c) => c);
+  for (const m of meshes) m.material.uniforms.uRamp.value = ramp;
+};
+window.setBands = function (n) {
+  const bands = Math.max(0, Math.round(+n || 0));
+  for (const m of meshes) m.material.uniforms.uBands.value = bands;
+  return bands;
+};
+
+// The legend has to be banded too when the surface is, or the bar promises a
+// smooth scale the model does not have. Hard stops at each band edge, with each
+// band painted the colour the shader samples — its centre.
+window.colourMapCss = function (name, bands) {
+  const map = COLOUR_MAPS[name] || VIRIDIS;
+  const at = (t) => {
+    const x = Math.min(Math.max(t, 0), 1) * (map.length - 1);
+    const i = Math.min(Math.floor(x), map.length - 2), f = x - i;
+    const c = map[i].map((v, k) => v + (map[i + 1][k] - v) * f);
+    return `rgb(${c.map((v) => Math.round(v * 255)).join(",")})`;
+  };
+  if (!bands) {
+    return "linear-gradient(90deg," + map   /* design: data */
+      .map((c) => `rgb(${c.map((v) => Math.round(v * 255)).join(",")})`).join(",") + ")";
+  }
+  const stops = [];
+  for (let i = 0; i < bands; i++) {
+    const col = at((i + 0.5) / bands);
+    stops.push(`${col} ${(i / bands) * 100}%`, `${col} ${((i + 1) / bands) * 100}%`);
+  }
+  return "linear-gradient(90deg," + stops.join(",") + ")";   /* design: data */
+};
+
+window.setWireframe = function (on) {
+  for (const m of meshes) { m.material.wireframe = !!on; m.material.needsUpdate = true; }
+};
+
+// Standard orthographic-style views. Anyone reading a CFD result wants to look
+// at it down the flow axis and from the side, and doing that by dragging is
+// imprecise — two runs compared from slightly different angles do not compare.
+const VIEWS = {
+  iso:   [ 1.6,  0.9,  1.8],
+  front: [-2.6,  0.0,  0.0],   // looking downstream, into the oncoming flow
+  back:  [ 2.6,  0.0,  0.0],
+  side:  [ 0.0, -2.6,  0.0],
+  top:   [ 0.0,  0.0,  2.6],
+};
+// Tell the app the viewer API exists. `type="module"` is deferred, so this
+// whole block runs AFTER the classic script below has already called boot() —
+// meaning renderGlb/applyField/setClip are undefined during the first render.
+// Without this handshake the first paint throws TypeError inside showModel's
+// try, becomes a toast, and the viewport stays empty on every cold load.
+window.setView = function (name) {
+  const v = VIEWS[name] || VIEWS.iso;
+  // Same fitted distance the initial framing uses, so switching view never
+  // changes how big the car is — only which side of it you are looking at.
+  const dist = bounds?.dist || 1;
+  camera.position.copy(new THREE.Vector3(...v).normalize().multiplyScalar(dist));
+  camera.up.set(0, 0, 1);
+  controls.target.set(0, 0, 0); controls.update();
+};
+
+// A run is evidence, and evidence gets put in a report. Render at device
+// resolution rather than screen size so the image survives being printed.
+window.snapshot = function (name) {
+  renderer.render(scene, camera);
+  const a = document.createElement("a");
+  a.href = renderer.domElement.toDataURL("image/png");
+  a.download = (name || "turboflow") + ".png";
+  a.click();
+};
+
+// ── inspect point ────────────────────────────────────────────────────────────
+// Read the field value at a point on the surface. The value is taken from the
+// nearest vertex of the hit triangle rather than interpolated across it: the
+// field buffer is per-vertex (one Float32 per vertex, see the worker's
+// export_results_for_viewer), so a vertex value is a number the solver actually
+// produced, whereas a barycentric blend is a number nothing produced. For a
+// probe whose whole job is "what is the pressure HERE", inventing a value is
+// worse than snapping a few tenths of a millimetre.
+// ── field statistics ─────────────────────────────────────────────────────────
+// Area-weighted, over the visible surface only.
+//
+// A per-vertex mean is not the mean of the field. Tessellation puts vertices
+// where curvature is, so a nose with a tight fillet contributes hundreds of
+// vertices over a few square millimetres while a flat deck contributes a
+// handful over a large area — an unweighted mean is really "the average of
+// wherever the mesher happened to put points". Weighting each triangle by its
+// area gives the surface average, which is the number that means something.
+//
+// Triangles removed by the cutting plane are excluded: the panel describes what
+// is on screen, and reporting statistics for geometry just cut away answers a
+// question nobody asked.
+window.fieldStats = function () {
+  if (!meshes.length) return null;
+  scene.updateMatrixWorld(true);
+
+  const clipping = isFinite(CLIP.constant);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const ab = new THREE.Vector3(), ac = new THREE.Vector3();
+  const centroid = new THREE.Vector3();
+
+  let min = Infinity, max = -Infinity;
+  let sumA = 0, sumFA = 0, sumF2A = 0, tris = 0, skipped = 0;
+
+  for (const m of meshes) {
+    const g = m.geometry, field = g.getAttribute("aField"), pos = g.getAttribute("position");
+    if (!field || !pos) continue;
+    const idx = g.getIndex();
+    const count = idx ? idx.count : pos.count;
+    const at = (k) => (idx ? idx.getX(k) : k);
+
+    for (let t = 0; t + 2 < count; t += 3) {
+      const i0 = at(t), i1 = at(t + 1), i2 = at(t + 2);
+      const f0 = field.array[i0], f1 = field.array[i1], f2 = field.array[i2];
+      if (!isFinite(f0) || !isFinite(f1) || !isFinite(f2)) continue;
+
+      a.fromBufferAttribute(pos, i0).applyMatrix4(m.matrixWorld);
+      b.fromBufferAttribute(pos, i1).applyMatrix4(m.matrixWorld);
+      c.fromBufferAttribute(pos, i2).applyMatrix4(m.matrixWorld);
+
+      if (clipping) {
+        centroid.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+        // three keeps the half-space where normal·p + constant > 0.
+        if (CLIP.normal.dot(centroid) + CLIP.constant <= 0) { skipped++; continue; }
+      }
+
+      const area = 0.5 * ab.subVectors(b, a).cross(ac.subVectors(c, a)).length();
+      if (!(area > 0)) continue;
+
+      const fm = (f0 + f1 + f2) / 3;
+      sumA += area; sumFA += fm * area; sumF2A += fm * fm * area;
+      tris++;
+      for (const v of [f0, f1, f2]) { if (v < min) min = v; if (v > max) max = v; }
+    }
+  }
+
+  if (!tris || !(sumA > 0)) return null;
+  const mean = sumFA / sumA;
+  // Area-weighted variance, floored at 0 against floating-point drift.
+  const std = Math.sqrt(Math.max(0, sumF2A / sumA - mean * mean));
+  return { min, max, mean, std, area: sumA, triangles: tris, skipped, clipping };
+};
+
+// ── inspect point ────────────────────────────────────────────────────────────
+const RAY = new THREE.Raycaster();
+window.inspectAt = function (clientX, clientY) {
+  if (!meshes.length) return null;
+  // Raycasting reads world matrices, and those are only refreshed by
+  // renderer.render(). A probe must not depend on a frame having been drawn
+  // first: the page may not be compositing at all , so refresh them here.
+  scene.updateMatrixWorld(true);
+  camera.updateMatrixWorld();
+  const r = canvas.getBoundingClientRect();
+  RAY.setFromCamera(new THREE.Vector2(
+    ((clientX - r.left) / r.width) * 2 - 1,
+    -((clientY - r.top) / r.height) * 2 + 1), camera);
+  const hit = RAY.intersectObjects(meshes, false)[0];
+  if (!hit || !hit.face) return null;
+
+  const g = hit.object.geometry;
+  const field = g.getAttribute("aField");
+  const pos = g.getAttribute("position");
+  let value = null;
+  if (field) {
+    const v = new THREE.Vector3();
+    let best = null, bestD = Infinity;
+    for (const i of [hit.face.a, hit.face.b, hit.face.c]) {
+      v.fromBufferAttribute(pos, i);
+      hit.object.localToWorld(v);
+      const d = v.distanceToSquared(hit.point);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    const raw = field.array[best];
+    if (isFinite(raw)) value = raw;
+  }
+  const faceAttr = g.getAttribute("aFace");
+  const faceId = faceAttr ? faceAttr.array[hit.face.a] : null;
+  return { value, world: hit.point.toArray(), faceId };
+};
+
+// Every face the pointer passes through, nearest first. SimScale calls this
+// "select other": on a car the face you want is often the wheel behind the
+// bodywork, and no amount of clicking the front one will ever reach it.
+window.facesUnderPointer = function (clientX, clientY) {
+  if (!meshes.length) return [];
+  scene.updateMatrixWorld(true);
+  camera.updateMatrixWorld();
+  const r = canvas.getBoundingClientRect();
+  RAY.setFromCamera(new THREE.Vector2(
+    ((clientX - r.left) / r.width) * 2 - 1,
+    -((clientY - r.top) / r.height) * 2 + 1), camera);
+  const out = [];
+  for (const hit of RAY.intersectObjects(meshes, false)) {
+    if (!hit.face) continue;
+    const attr = hit.object.geometry.getAttribute("aFace");
+    if (!attr) continue;
+    const id = attr.array[hit.face.a];
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+};
+
+// Highlight one face group, or -1 to clear. Kept separate from picking so the
+// tree can highlight a boundary condition's faces without anyone clicking.
+window.selectFace = function (id) {
+  const v = id == null ? -1 : +id;
+  for (const m of meshes) m.material.uniforms.uSelFace.value = v;
+  return v;
+};
+
+// Which groups this geometry actually has, and how many triangles each holds —
+// enough for the panel to list them without a second request.
+window.faceGroups = function () {
+  const counts = new Map();
+  for (const m of meshes) {
+    const f = m.geometry.getAttribute("aFace");
+    if (!f) continue;
+    for (let i = 0; i < f.count; i += 3) {
+      const id = f.array[i];
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => a[0] - b[0])
+    .map(([id, triangles]) => ({ id, triangles }));
+};
+
+// ── marked faces ─────────────────────────────────────────────────────────────
+// Which faces the user has said are wheels. Written into the per-vertex aPick
+// attribute rather than passed as a uniform, so any number of faces can be lit
+// at once.
+window.setPickedFaces = function (ids) {
+  const want = new Set((ids || []).map(Number));
+  for (const m of meshes) {
+    const face = m.geometry.getAttribute("aFace");
+    const pick = m.geometry.getAttribute("aPick");
+    if (!face || !pick) continue;
+    for (let i = 0; i < pick.count; i++) pick.array[i] = want.has(face.array[i]) ? 1 : 0;
+    pick.needsUpdate = true;
+  }
+};
+
+// ── wind tunnel box ──────────────────────────────────────────────────────────
+// The Fusion add-in built the tunnel inside Fusion, where the user could see it
+// against their car. Here the car is a file, so the box is drawn around it and
+// dragged by its walls. Everything below is in MODEL units, not metres: the glb
+// arrives in whatever unit the STEP was written in, and the caller converts.
+let tunnel = null, tunnelBox = null, dragging = null;
+const WALLS = [
+  { key: "x1", axis: "x", sign: +1 }, { key: "x0", axis: "x", sign: -1 },
+  { key: "y1", axis: "y", sign: +1 }, { key: "y0", axis: "y", sign: -1 },
+  { key: "z1", axis: "z", sign: +1 }, { key: "z0", axis: "z", sign: -1 },
+];
+
+// Rebuilding the box, keeping any drag in progress. A drag redraws the box on
+// every pointer move, so tearing the drag down here would end it after the
+// first move and the wall would jump once and then stick.
+function disposeTunnel() {
+  if (!tunnel) return;
+  tunnel.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+  tunnel.parent?.remove(tunnel);
+  tunnel = null; tunnelBox = null;
+}
+
+window.showTunnel = function (box) {
+  disposeTunnel();
+  if (!box || !current) return;
+  tunnelBox = { ...box };
+  tunnel = new THREE.Group();
+  // A child of the model, so it picks up the recentring frame() applied to it.
+  // As a sibling it would sit a car's width away from where it belongs.
+  current.add(tunnel);
+
+  const sx = box.x1 - box.x0, sy = box.y1 - box.y0, sz = box.z1 - box.z0;
+  const mid = [(box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2];
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(sx, sy, sz)),
+    new THREE.LineBasicMaterial({ color: 0x4a90d9, transparent: true, opacity: 0.9 }));
+  edges.position.set(...mid);
+  tunnel.add(edges);
+
+  // One mesh per wall, so a drag knows which wall it grabbed. Rendered faintly
+  // and written to depth-never, so the car stays visible through the box.
+  for (const w of WALLS) {
+    const g = w.axis === "x" ? new THREE.PlaneGeometry(sy, sz)
+            : w.axis === "y" ? new THREE.PlaneGeometry(sx, sz)
+            : new THREE.PlaneGeometry(sx, sy);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: 0x4a90d9, transparent: true, opacity: 0.05,
+      side: THREE.DoubleSide, depthWrite: false }));
+    const p = [...mid];
+    p[w.axis === "x" ? 0 : w.axis === "y" ? 1 : 2] = box[w.key];
+    m.position.set(...p);
+    if (w.axis === "x") m.rotation.y = Math.PI / 2;
+    else if (w.axis === "y") m.rotation.x = Math.PI / 2;
+    m.userData.wall = w;
+    tunnel.add(m);
+  }
+  scene.updateMatrixWorld(true);
+};
+
+window.hideTunnel = function () {
+  disposeTunnel();
+  dragging = null;
+  controls.enabled = true;
+};
+
+// Pull the camera back to take in the whole tunnel. The box is around ten times
+// the car in every direction, so a view framed on the car shows none of it.
+window.frameTunnel = function () {
+  if (!tunnel) return;
+  const b = new THREE.Box3().setFromObject(tunnel);
+  const size = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  const dist = fitDistance(size);
+  camera.position.copy(c.clone().add(new THREE.Vector3(...VIEWS.iso).normalize().multiplyScalar(dist)));
+  camera.near = dist / 500; camera.far = dist * 50; camera.updateProjectionMatrix();
+  controls.target.copy(c); controls.update();
+};
+
+function rayFrom(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  RAY.setFromCamera(new THREE.Vector2(
+    ((clientX - r.left) / r.width) * 2 - 1,
+    -((clientY - r.top) / r.height) * 2 + 1), camera);
+  return RAY;
+}
+
+// The pointer ray in the tunnel's own coordinates. The box is a child of the
+// model, and the model is moved to recentre it, so a world-space ray compared
+// against local box coordinates would be out by that offset.
+function localRay(clientX, clientY) {
+  const r = rayFrom(clientX, clientY).ray;
+  const inv = new THREE.Matrix4().copy(tunnel.matrixWorld).invert();
+  const o = r.origin.clone().applyMatrix4(inv);
+  const t = r.origin.clone().add(r.direction).applyMatrix4(inv);
+  return { origin: o, dir: t.sub(o).normalize() };
+}
+
+const AXIS_VEC = {
+  x: new THREE.Vector3(1, 0, 0),
+  y: new THREE.Vector3(0, 1, 0),
+  z: new THREE.Vector3(0, 0, 1),
+};
+
+// The plane a wall slides in: it contains the wall's axis and faces the camera
+// as squarely as it can. Fixed when the wall is grabbed, so the plane does not
+// tilt under the pointer mid-drag.
+function dragPlaneNormal(ray, axis) {
+  const d = AXIS_VEC[axis];
+  const n = ray.dir.clone().sub(d.clone().multiplyScalar(ray.dir.dot(d)));
+  return n.lengthSq() < 1e-9 ? null : n.normalize();   // looking down the axis
+}
+
+// How far along the axis the pointer is, measured from `origin`.
+//
+// The obvious reading of "constrain a drag to one axis" is to take the point on
+// the axis line closest to the pointer ray. That is well defined but it is not
+// a drag: as the pointer crosses the axis the closest point turns around, so
+// the wall runs out, stops and comes back while the pointer keeps going. This
+// projects onto a plane through the axis instead, which is what a translate
+// gizmo does and what the hand expects.
+function alongAxis(ray, origin, axis, normal) {
+  if (!normal) return null;
+  const den = ray.dir.dot(normal);
+  if (Math.abs(den) < 1e-9) return null;
+  const t = origin.clone().sub(ray.origin).dot(normal) / den;
+  const hit = ray.origin.clone().add(ray.dir.clone().multiplyScalar(t));
+  return hit.sub(origin).dot(AXIS_VEC[axis]);
+}
+
+// Is the pointer over a tunnel wall, and which one. Used for the cursor as well
+// as for starting a drag.
+window.tunnelWallAt = function (clientX, clientY) {
+  if (!tunnel) return null;
+  scene.updateMatrixWorld(true);
+  const hit = rayFrom(clientX, clientY)
+    .intersectObjects(tunnel.children.filter((o) => o.userData.wall), false)[0];
+  return hit ? hit.object.userData.wall.key : null;
+};
+
+window.startTunnelDrag = function (clientX, clientY) {
+  if (!tunnel) return null;
+  scene.updateMatrixWorld(true);
+  const hit = rayFrom(clientX, clientY)
+    .intersectObjects(tunnel.children.filter((o) => o.userData.wall), false)[0];
+  if (!hit) return null;
+  const w = hit.object.userData.wall;
+  const local = tunnel.worldToLocal(hit.point.clone());
+  // The line the wall slides along, and the plane it slides in, are both fixed
+  // at grab time and reused for every move. Measuring against a different plane
+  // each frame would give a displacement that is not the one the pointer made.
+  const ray = localRay(clientX, clientY);
+  const normal = dragPlaneNormal(ray, w.axis);
+  dragging = { wall: w, line: local.clone(), normal, from: tunnelBox[w.key],
+               start: alongAxis(ray, local, w.axis, normal) };
+  controls.enabled = false;
+  return w.key;
+};
+
+// Returns the wall's new position in model units, or null. The caller turns it
+// into an offset and calls showTunnel again, so the box on screen and the
+// numbers in the panel can never drift apart.
+window.moveTunnelDrag = function (clientX, clientY) {
+  if (!dragging || dragging.start == null) return null;
+  const now = alongAxis(localRay(clientX, clientY), dragging.line,
+                        dragging.wall.axis, dragging.normal);
+  if (now == null) return null;
+  return { key: dragging.wall.key, value: dragging.from + (now - dragging.start) };
+};
+
+window.endTunnelDrag = function () {
+  dragging = null;
+  controls.enabled = true;
+};
+
+// Anything that changes the scene has to ask for a frame now that the loop
+// only draws on demand. Wrapping them here rather than adding a call inside
+// each one means a function added later cannot quietly forget: it is listed
+// once, in one place, and the list is the contract.
+for (const name of ["renderGlb", "applyField", "setClip", "setWireframe",
+                    "selectFace", "setPickedFaces", "showTunnel", "hideTunnel",
+                    "frameTunnel", "setColourMap", "setRange", "setBands",
+                    "moveTunnelDrag", "endTunnelDrag"]) {
+  const fn = window[name];
+  if (typeof fn !== "function") continue;
+  window[name] = function (...args) {
+    const out = fn.apply(this, args);
+    if (out && typeof out.then === "function") return out.then((v) => (window.requestDraw(), v));
+    window.requestDraw();
+    return out;
+  };
+}
+
+// Project a world point to viewport pixels. Returns null when it falls behind
+// the camera, so a pin on the far side of the car hides instead of ghosting
+// through it.
+window.projectPoint = function (world) {
+  const v = new THREE.Vector3(...world).project(camera);
+  if (v.z > 1) return null;
+  const r = canvas.getBoundingClientRect();
+  return { x: (v.x * 0.5 + 0.5) * r.width, y: (-v.y * 0.5 + 0.5) * r.height };
+};
+
+// The pins have to follow the model when it is orbited, and rAF cannot be
+// relied on (it is suspended whenever the page is not compositing), so this is
+// driven by OrbitControls' own change event instead.
+window.onCameraChange = (fn) => controls.addEventListener("change", fn);
+
+// Everything above is now defined: release anything waiting on the viewer.
+window.__viewerReady?.();
+</script>
+
+<script>
+const sb = window.sb;                 // the shim already made the client
+
+// The 3D viewer lives in a `type="module"` block, which the browser defers —
+// it executes after this script has already run boot(). So nothing here may
+// touch renderGlb/applyField/setClip until the module says it is ready.
+const viewerReady = new Promise((resolve) => { window.__viewerReady = resolve; });
+
+// The setup panels and the results panes are separate files. If one fails to
+// load, degrade to a legible message in that one pane rather than throwing out
+// of render() and leaving the whole workspace blank.
+const MODULE_MISSING = (name) => `<p class="err">${name} failed to load: reload the page.</p>`;
+window.WBPanels = window.WBPanels || {
+  tree: () => [],
+  inspector: () => ({ title: "Setup", subtitle: "", html: MODULE_MISSING("workbench-panels.js") }),
+};
+window.WBResults = window.WBResults || {
+  readout: () => "", convergencePane: () => MODULE_MISSING("workbench-results.js"),
+  forcePane: () => MODULE_MISSING("workbench-results.js"),
+  comparePane: () => MODULE_MISSING("workbench-results.js"),
+};
+// Cloud Run tessellation service (OCC kernel). See MIGRATION.md 8c.
+const TESSELLATE_URL = window.TESSELLATE_URL
+  || "https://turboflow-tessellate-653114694502.us-central1.run.app";
+let me = null, state = {
+  projects: [], sims: [], geoms: [], jobs: [],
+  selSim: null, selJob: null, tab: "runs", compare: new Set(), fields: {},
+  // The setup tree node the right-hand inspector is showing. Mirrors SimScale:
+  // the tree is the navigation and the panel is whatever the tree has selected.
+  selNode: "geometry",
+  // Collapsed setup-tree headers, by node id.
+  collapsed: new Set(),
+  // Inspect-point mode and the pins placed so far.
+  inspecting: false, pins: [], fieldValues: null,
+  // The account row, because sponsorship and unlimited passes change the price.
+  account: null,
+  // Edits are held here until Save, so a half-typed velocity never reaches the
+  // database and a failed save does not leave the panel showing a value the
+  // server rejected.
+  draft: null, draftSim: null,
+  // The wind tunnel being set up around a raw car, or null when not preparing
+  // one. The panel reads nothing else, so what is drawn and what is typed
+  // cannot drift apart.
+  prep: null,
+};
+
+// The setup document for a simulation, defaults filled in. Prefers the local
+// draft so the panel reflects what you typed, not what was last saved.
+function setupOf(sim) {
+  if (!sim) return CFD.withDefaults(null);
+  if (state.draft && state.draftSim === sim.id) return state.draft;
+  return CFD.withDefaults(sim.setup);
+}
+
+// Everything the panels need, assembled once per render.
+function panelCtx() {
+  const sim = state.sims.find((x) => x.id === state.selSim) || null;
+  const geom = sim ? state.geoms.find((g) => g.id === sim.geometry_id) || null : null;
+  const project = sim ? state.projects.find((p) => p.id === sim.project_id) || null : null;
+  const setup = setupOf(sim);
+  const simFor = sim || { inlet_velocity: 20, refine_level: 3, iteration_count: 1000, debug_mesh: false };
+  return {
+    project, geometry: geom, geometries: state.geoms, sim, setup,
+    derived: CFD.derive(simFor, geom, setup, state.account),
+    runs: sim ? state.jobs.filter((j) => j.simulation_ref === sim.id) : [],
+    version: geom ? geometryVersion(geom) : 0,
+    dirty: !!(state.draft && state.draftSim === state.selSim),
+  };
+}
+
+// ── the two globals every panel control talks to ─────────────────────────────
+// A panel is a string of markup, so it cannot close over state. It calls these.
+function wbSet(path, value, type) {
+  const sim = state.sims.find((x) => x.id === state.selSim);
+  if (!sim) return;
+  const v = type === "number" ? (value === "" ? null : +value)
+          : type === "bool" ? !!value
+          : value;
+  if (type === "number" && v != null && !isFinite(v)) return;
+
+  if (path.startsWith("sim.")) {
+    // The four columns that predate the setup document. They are clamped here
+    // to the same bounds on-new-job clamps to, so the screen cannot promise a
+    // value the server will quietly change.
+    const col = path.slice(4);
+    const CLAMP = {
+      inlet_velocity: [1, 100], refine_level: [1, 5], iteration_count: [1, 3000],
+    }[col];
+    sim[col] = CLAMP ? Math.max(CLAMP[0], Math.min(CLAMP[1], v)) : v;
+  } else {
+    if (!state.draft || state.draftSim !== sim.id) {
+      state.draft = CFD.withDefaults(sim.setup); state.draftSim = sim.id;
+    }
+    const keys = path.split(".");
+    let node = state.draft;
+    for (const k of keys.slice(0, -1)) node = node[k] ??= {};
+    node[keys[keys.length - 1]] = v;
+  }
+  render();
+}
+
+function wbAction(name, arg) {
+  const sim = state.sims.find((x) => x.id === state.selSim);
+  if (name === "save" && sim) return saveSim(sim.id);
+  if (name === "run" && sim) return runSim(sim.id);
+  if (name === "cancel" && state.selJob) {
+    const j = state.jobs.find((x) => x.id === state.selJob);
+    return cancelRun(j.id, j.cost ?? 0);
+  }
+  if (name === "resetSection" && sim) {
+    if (!state.draft || state.draftSim !== sim.id) {
+      state.draft = CFD.withDefaults(sim.setup); state.draftSim = sim.id;
+    }
+    state.draft[arg] = CFD.clone(CFD.DEFAULTS[arg]);
+    return render();
+  }
+  if (name === "discard") { state.draft = state.draftSim = null; return render(); }
+  if (name === "edit") return applyEdit(state.selSim);
+  if (name === "upload") return autoCfd();
+}
+window.wbSet = wbSet; window.wbAction = wbAction;
+
+const $ = (id) => document.getElementById(id);
+// In-page replacement for prompt()/confirm(). With `input` set it resolves to the
+// trimmed string (or null if dismissed); without it, to true/false.
+function ask({ title, body = "", input = null, ok = "OK" }) {
+  return new Promise((resolve) => {
+    const back = $("modal"), field = $("modalInput"), text = $("modalBody");
+    const isPrompt = input !== null;
+    $("modalTitle").textContent = title;
+    text.textContent = body;
+    text.classList.toggle("hidden", !body);
+    field.classList.toggle("hidden", !isPrompt);
+    field.value = input || "";
+    $("modalOk").textContent = ok;
+    back.classList.remove("hidden");
+    // Move focus into the dialog for both shapes: the field for a prompt, the OK
+    // button for a confirm. Without this a confirm left focus on the trigger
+    // behind the backdrop, invisible to keyboard and screen-reader users.
+    (isPrompt ? field : $("modalOk")).focus();
+
+    const done = (v) => {
+      back.classList.add("hidden");
+      document.removeEventListener("keydown", onKey);
+      resolve(v);
+    };
+    const accept = () => done(isPrompt ? field.value.trim() : true);
+    const onKey = (e) => {
+      if (e.key === "Escape") done(isPrompt ? null : false);
+      else if (e.key === "Enter") accept();
+    };
+    $("modalOk").onclick = accept;
+    $("modalCancel").onclick = () => done(isPrompt ? null : false);
+    document.addEventListener("keydown", onKey);
+  });
+}
+
+function toast(msg, ms = 4000) {
+  const t = $("toast"); t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.add("hidden"), ms);
+}
+function signIn() {
+  sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href } });
+}
+
+// The reload has to happen whether or not the server round trip worked, or the
+// button looks dead. signOut() revokes the refresh token server-side and that
+// call can fail — offline, or a token the server has already dropped — while the
+// user's intent still stands, so fall back to clearing this browser's session.
+async function signOutNow() {
+  // Demo mode has no real session: its stub returns one on every load, so a
+  // plain reload lands straight back in. Leaving demo is the honest equivalent.
+  if (window.DEMO_MODE) return location.replace("workbench.html");
+  const { error } = await sb.auth.signOut().catch((e) => ({ error: e }));
+  if (error) await sb.auth.signOut({ scope: "local" }).catch(() => {});
+  // One session across the whole site, so signing out here signs out of
+  // TurboFlow. Land on the site rather than on this page's sign-in card.
+  location.href = "/";
+}
+
+async function boot() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { $("gate").classList.remove("hidden"); return; }
+    const first = !me;
+    me = session.user;
+    $("gate").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    live();
+    if (first) await refresh();   // a token refresh is not a reason to refetch
+  } catch (e) {
+    // getSession() reading local storage rarely rejects, but if it does the
+    // finally alone would clear the splash and leave a blank page with no route
+    // back. Fall back to the gate so the user can always sign in.
+    if ($("app").classList.contains("hidden")) $("gate").classList.remove("hidden");
+    toast("Could not restore your session: " + (e.message || e), 8000);
+  } finally {
+    // The splash must not outlive the decision. Hiding it anywhere but a finally
+    // means one thrown request leaves a spinner up with no way back to the gate.
+    $("boot").classList.add("hidden");
+  }
+}
+
+async function refresh() {
+  const [p, g, s, j, u] = await Promise.all([
+    sb.from("projects").select("*").order("created_at"),
+    sb.from("geometries").select("*").order("created_at"),
+    sb.from("simulations").select("*").order("created_at"),
+    sb.from("jobs").select("*").order("created_at", { ascending: false }),
+    sb.from("users").select("credits, sponsored, sponsor_rate, unlimited_until")
+      .eq("id", me.id).maybeSingle(),
+  ]);
+  // Say so rather than rendering an empty tree that looks like "no projects".
+  const failed = [p, g, s, j, u].find((r) => r.error);
+  if (failed) toast("Could not load your projects: " + failed.error.message, 8000);
+
+  state.projects = p.data || []; state.geoms = g.data || [];
+  state.sims = s.data || [];     state.jobs = j.data || [];
+  state.account = u.data || null;
+  $("credits").textContent = (u.data?.credits ?? 0) + " credits";
+
+  // Open on something. An empty viewport with "select a simulation" is a wall
+  // between the user and their own work — they came here to look at a result,
+  // so land them on the most recent one that has something to show.
+  if (!state.selSim && state.sims.length) {
+    const withResults = state.jobs.find((x) => x.results_glb_path);
+    const seed = withResults
+      ? state.sims.find((x) => x.id === withResults.simulation_ref)
+      : null;
+    const sim = seed || state.sims[state.sims.length - 1];
+    if (sim) {
+      state.selSim = sim.id;
+      const latest = state.jobs.find((x) => x.simulation_ref === sim.id);
+      state.selJob = (withResults && withResults.simulation_ref === sim.id)
+        ? withResults.id : (latest?.id ?? null);
+    }
+  }
+  render();
+}
+
+// Realtime: the tree and run list keep themselves current while a job runs.
+//
+// Subscribe once. onAuthStateChange fires on every token refresh — hourly — and
+// an unguarded subscribe there stacks a new channel each time, so by the end of
+// an afternoon a single job update would trigger a fistful of refetches.
+let channel = null;
+function live() {
+  if (channel) return;
+  channel = sb.channel("workbench");
+  for (const table of ["jobs", "projects", "simulations", "geometries"]) {
+    channel.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
+  }
+  channel.subscribe((status) => {
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      toast("Live updates dropped: reload to reconnect.", 6000);
+    }
+  });
+}
+
+// Semantic glyph per setup-tree node type. The shape carries the node's meaning
+// (flow in/out, wall, wheel, mesh, run…) so the tree is legible at a glance;
+// colour is spent only where it is information itself , teal flow-in at the
+// inlet, amber flow-out at the outlet , with everything structural left neutral.
+// Returns "" for ids that have no glyph.
+function nodeIcon(id) {
+  const G = {
+    geometry: '<path d="M8 2 14 5v6l-6 3-6-3V5z"/><path d="M2 5l6 3 6-3M8 8v6"/>',
+    analysis: '<path d="M2 6h7a2 2 0 1 0-2-2"/><path d="M2 10h6a2 2 0 1 1-2 2"/>',
+    material: '<path d="M8 2.5c2.4 3 3.8 4.9 3.8 6.8a3.8 3.8 0 0 1-7.6 0C4.2 7.4 5.6 5.5 8 2.5z"/>',
+    "bc:inlet": '<path d="M2 8h7M6 5l3 3-3 3M12.5 3v10"/>',
+    "bc:outlet": '<path d="M3.5 3v10M7 8h7M11 5l3 3-3 3"/>',
+    "bc:ground": '<path d="M2 10.5h12M4 10.5l-1.5 2.5M8 10.5l-1.5 2.5M12 10.5l-1.5 2.5"/>',
+    "bc:top": '<path d="M2 5.5h12M4 5.5l-1.5-2.5M8 5.5l-1.5-2.5M12 5.5l-1.5-2.5"/>',
+    "bc:sides": '<path d="M4 2.5v11M12 2.5v11"/>',
+    "bc:symmetry": '<path d="M8 2v12" stroke-dasharray="2 2"/><path d="M4.5 6 6.5 8l-2 2M11.5 6 9.5 8l2 2"/>',
+    "bc:car": '<path d="M2 10.5h12M3.6 10.5 4.8 7.4h6.4l1.2 3.1"/><circle cx="5.6" cy="10.6" r="1.15"/><circle cx="10.4" cy="10.6" r="1.15"/>',
+    "bc:wheels": '<circle cx="8" cy="8" r="5.2"/><circle cx="8" cy="8" r="1.7"/>',
+    numerics: '<path d="M11.5 3.2H4.5l3.8 4.8-3.8 4.8h7"/>',
+    control: '<path d="M3 4.5h10M3 8h10M3 11.5h10"/><circle cx="6" cy="4.5" r="1.4"/><circle cx="10" cy="8" r="1.4"/><circle cx="5" cy="11.5" r="1.4"/>',
+    results: '<path d="M2.5 13.5h11M4.5 13V8.5M8 13V4.5M11.5 13V6.5"/>',
+    mesh: '<path d="M2.5 2.5h11v11h-11z"/><path d="M6 2.5v11M10 2.5v11M2.5 6h11M2.5 10h11"/>',
+    runs: '<path d="M5.5 3.5v9l7-4.5z"/>',
+  };
+  const g = G[id];
+  if (!g) return "";
+  const col = id === "bc:inlet" ? "var(--tint-inlet)"
+            : id === "bc:outlet" ? "var(--warn)"
+            : id.startsWith("bc:") ? "var(--ink-3)"
+            : "var(--ink-2)";
+  return `<span class="tnode-ic" style="color:${col}"><svg viewBox="0 0 16 16" aria-hidden="true">${g}</svg></span>`;
+}
+
+function render() {
+  // ── tree ──
+  // Project > simulation > the setup tree, the way SimScale lays it out: the
+  // tree is the navigation, and whatever is selected is what the right-hand
+  // panel edits. The setup nodes only appear under the selected simulation —
+  // showing eight setup children for every simulation in the project turns the
+  // tree into a wall.
+  const t = $("tree"); t.innerHTML = "";
+  const unfiled = state.jobs.filter((j) => !j.project_id);
+  const ctx = panelCtx();
+
+  // ── GEOMETRIES ── the section SimScale puts first: every uploaded or edited
+  // solid, independent of which simulation uses it. Clicking one jumps to a
+  // simulation that runs it, landing on the geometry panel.
+  t.insertAdjacentHTML("beforeend",
+    `<div class="group-label"><span class="eyebrow">Geometries (${state.geoms.length})</span></div>`);
+  for (const g of state.geoms) {
+    const d = document.createElement("button");
+    const usedBy = state.sims.find((s) => s.geometry_id === g.id);
+    d.className = "row child" + (ctx.geometry?.id === g.id && state.selNode === "geometry" ? " sel" : "");
+    d.innerHTML = `<span class="grow">${esc(g.name)}</span><span class="ver">v${geometryVersion(g)}</span>`;
+    d.onclick = () => {
+      if (usedBy) { state.selSim = usedBy.id; state.selJob = null; state.selNode = "geometry"; render(); }
+      else toast("No simulation uses this geometry yet.");
+    };
+    t.appendChild(d);
+  }
+  if (!state.geoms.length) t.insertAdjacentHTML("beforeend", `<div class="empty">No geometries uploaded.</div>`);
+
+  // ── SIMULATIONS ──
+  t.insertAdjacentHTML("beforeend",
+    `<div class="group-label" style="margin-top:var(--s2)"><span class="eyebrow">Simulations</span></div>`);
+  for (const p of state.projects) {
+    const sims = state.sims.filter((s) => s.project_id === p.id);
+    const el = document.createElement("div");
+    el.innerHTML = `<div class="group-label">${esc(p.name)}</div>`;
+    for (const s of sims) {
+      const runs = state.jobs.filter((j) => j.simulation_ref === s.id).length;
+      const d = document.createElement("button");
+      d.className = "row child" + (state.selSim === s.id ? " sel" : "");
+      d.innerHTML = `<span class="grow">${esc(s.name)}</span><span class="num muted">${runs}</span>`;
+      d.onclick = () => { state.selSim = s.id; state.selJob = null; state.selNode = "geometry"; render(); };
+      el.appendChild(d);
+
+      if (state.selSim === s.id && window.WBPanels) {
+        // Headers collapse. Boundary conditions alone is eight rows, and a tree
+        // you have to scroll to reach Mesh is a tree nobody uses.
+        let hiddenUnder = null;
+        for (const n of WBPanels.tree(ctx)) {
+          if (hiddenUnder !== null) {
+            if (n.depth > hiddenUnder) continue;      // still inside a collapsed header
+            hiddenUnder = null;
+          }
+          const indent = 10 + n.depth * 13;
+          if (n.kind === "header") {
+            const open = !state.collapsed.has(n.id);
+            if (!open) hiddenUnder = n.depth;
+            const h = document.createElement("button");
+            h.className = "row";
+            h.style.cssText = `padding-left:${indent}px;color:var(--ink-3)`;
+            h.setAttribute("aria-expanded", String(open));
+            h.innerHTML = `<span class="twist" aria-expanded="${open}">
+                 <svg viewBox="0 0 10 10"><path d="M1 3h8L5 8z"/></svg></span>
+               <span class="grow eyebrow" style="color:inherit">${esc(n.label)}</span>`;
+            h.onclick = () => {
+              state.collapsed.has(n.id) ? state.collapsed.delete(n.id) : state.collapsed.add(n.id);
+              render();
+            };
+            el.appendChild(h);
+            continue;
+          }
+          const b = document.createElement("button");
+          b.className = "row" + (state.selNode === n.id ? " sel" : "");
+          b.style.paddingLeft = `${indent + 12}px`;
+          b.dataset.node = n.id;
+          b.innerHTML =
+            `<span class="dot dot-${n.state || "none"}" title="${esc(n.hint || n.state || "")}"></span>`
+            + nodeIcon(n.id)
+            + `<span class="grow">${esc(n.label)}</span>`
+            + (n.badge ? `<span class="num muted">${esc(n.badge)}</span>` : "");
+          b.onclick = () => { state.selNode = n.id; render(); };
+          el.appendChild(b);
+        }
+      }
+    }
+    if (!sims.length) el.insertAdjacentHTML("beforeend", `<div class="empty">No simulations</div>`);
+    t.appendChild(el);
+  }
+  if (unfiled.length) {
+    // Pre-workbench runs. Given its own heading rather than sitting inline with
+    // the project names: at the same indent it reads as a project called
+    // "Unfiled runs", which is not what it is.
+    t.insertAdjacentHTML("beforeend",
+      `<div class="group-label" style="margin-top:var(--s2)"><span class="eyebrow">Before projects</span></div>`);
+    const d = document.createElement("button");
+    d.className = "row child" + (state.selSim === "unfiled" ? " sel" : "");
+    d.innerHTML = `<span class="grow">Unfiled runs</span><span class="num muted">${unfiled.length}</span>`;
+    d.onclick = () => { state.selSim = "unfiled"; state.selJob = null; render(); };
+    t.appendChild(d);
+  }
+  if (!state.projects.length && !unfiled.length)
+    t.innerHTML = `<div class="firstrun">
+        <p class="firstrun-lead">Nothing here yet.</p>
+        <p class="firstrun-sub">Load a finished run to explore the tools: fields, cutting plane, forces and compare , on a real car.</p>
+        <button class="btn btn-primary btn-block" onclick="location.href='workbench.html?demo'">
+          See a worked example</button>
+        <p class="firstrun-note">Or click <b>Automatic CFD</b> above to upload your own
+          geometry. You'll need an entity_labels.csv from the Fusion plugin.</p>
+      </div>`;
+
+  // ── runs ──
+  const runs = state.selSim === "unfiled"
+    ? state.jobs.filter((j) => !j.project_id)
+    : state.jobs.filter((j) => j.simulation_ref === state.selSim);
+  // Column header, so the drag column reads as a column of numbers rather than
+  // a value floating at the end of each line.
+  const r = $("runs");
+  r.innerHTML = `<div class="runs-head">
+      <span style="flex:0 0 12px"></span><span class="c-tag">Status</span>
+      <span class="grow">Run</span><span class="c-drag">Drag N</span><span class="c-date">Date</span>
+    </div>`;
+  for (const j of (state.selSim ? runs : state.jobs)) {
+    // A div, not a button, because it contains a checkbox — so it has to carry
+    // the keyboard affordances a button would have given for free.
+    const d = document.createElement("div");
+    d.className = "row" + (state.selJob === j.id ? " sel" : "");
+    d.tabIndex = 0;
+    d.setAttribute("role", "button");
+    d.setAttribute("aria-pressed", String(state.selJob === j.id));
+    d.onkeydown = (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); d.click(); }
+    };
+    d.innerHTML = `
+      <input type="checkbox" class="pick" ${state.compare.has(j.id) ? "checked" : ""}
+             title="Add to comparison" aria-label="Compare this run">
+      <span class="c-tag"><span class="tag t-${esc(j.status)}">${esc(j.status)}</span></span>
+      <span class="grow">${esc(j.file_name || j.part || j.id.slice(0, 8))}</span>
+      <span class="num c-drag">${j.drag_n != null ? (+j.drag_n).toFixed(3) : ": "}</span>
+      <span class="num c-date">${new Date(j.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</span>`;
+    d.onclick = (ev) => {
+      if (ev.target.classList.contains("pick")) {
+        state.compare.has(j.id) ? state.compare.delete(j.id) : state.compare.add(j.id);
+      } else {
+        state.selJob = j.id;
+      }
+      render();
+    };
+    r.appendChild(d);
+  }
+  if (r.children.length === 1) r.insertAdjacentHTML("beforeend", `<div class="empty">No runs yet.</div>`);
+
+  // ── viewer: geometry of the selected simulation, results of the selected run ──
+  const simSel = state.sims.find((x) => x.id === state.selSim);
+  const geom = simSel && state.geoms.find((g) => g.id === simSel.geometry_id);
+  const job = state.jobs.find((j) => j.id === state.selJob);
+  showModel();                       // reconciles against current selection
+  // A run is measured against the setup it was launched with, not whatever the
+  // simulation says today: otherwise editing a case silently relabels every
+  // result that came before the edit.
+  const jobSetup = CFD.withDefaults(job?.setup_snapshot ?? simSel?.setup);
+  const jobDerived = !job ? null : CFD.derive({
+    inlet_velocity: job.inlet_velocity, refine_level: job.refine_level,
+    iteration_count: job.iteration_count, debug_mesh: job.debug_mesh,
+  }, geom, jobSetup);
+
+  $("viewer").innerHTML = !job ? "" : WBResults.readout({
+    job, derived: jobDerived, setup: jobSetup,
+    refundable: REFUNDABLE.has(job.status),
+    helpers: { lineChart, esc, deltaHtml },
+  });
+
+  // ── inspector: whatever the setup tree has selected ──
+  if (!ctx.sim) {
+    $("inspTitle").textContent = "Simulation setup";
+    $("inspSub").textContent = "";
+    $("insp").innerHTML = `<p class="muted">Select a simulation, or start one with Automatic CFD.</p>`;
+  } else {
+    const panel = WBPanels.inspector(state.selNode, ctx);
+    $("inspTitle").textContent = panel.title;
+    $("inspSub").textContent = panel.subtitle || "";
+    $("inspDirty").textContent = ctx.dirty ? "unsaved" : "";
+    $("insp").innerHTML = markNotes(panel.html)
+      + (state.selNode === "geometry" ? geometryEditControls(ctx) : "")
+      + `<div style="margin:var(--s5) 0 var(--s4)">
+           <button class="btn btn-block" style="margin-bottom:var(--s2)" onclick="wbAction('save')">
+             Save setup${ctx.dirty ? " •" : ""}</button>
+           <button class="btn btn-primary btn-block" onclick="wbAction('run')">
+             Run simulation: ${ctx.derived.unlimited ? "free" : ctx.derived.cost + " cr"}</button>
+           ${ctx.derived.discounted ? `<p class="panel-note" style="margin-top:var(--s2)">${
+             ctx.derived.unlimited
+               ? `Covered by your unlimited pass: the list price is
+                  ${ctx.derived.listCost} cr.`
+               : `Sponsored rate ${Math.round(ctx.derived.sponsorRate * 100)}% ,
+                  list price ${ctx.derived.listCost} cr.`}</p>` : ""}
+         </div>`;
+    applyNotes();          // innerHTML wiped the class, so reapply every render
+  }
+
+  renderJobStatus();
+  renderCharts();
+}
+
+// ── job status panel ──
+// The worker walks a fixed status sequence and writes each stage to the row;
+// progress is the position in that sequence, not an animation.
+const STAGES = ["queued", "pending", "downloading", "uploading_geometry",
+                "processing", "creating_simulation", "meshing", "running", "complete"];
+function renderJobStatus() {
+  const el = $("jobstatus");
+  const job = state.jobs.find((j) => j.id === state.selJob);
+  if (!job) { el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  const idx = STAGES.indexOf(job.status);
+  const pct = job.status === "complete" ? 100
+            : job.status === "failed" || job.status === "cancelled" ? 100
+            : idx >= 0 ? Math.round(idx / (STAGES.length - 1) * 100) : 0;
+  // created_at is a database string and can be absent on a row this client
+  // built optimistically, or unparseable. An unknown age must show nothing
+  // rather than "NaN d": the age is decoration, the status is the point.
+  const startedMs = Date.parse(job.created_at);
+  const mins = Number.isFinite(startedMs)
+    ? Math.max(0, Math.round((Date.now() - startedMs) / 60000)) : null;
+  const when = mins == null ? ""
+    : mins < 60 ? `${mins} min`
+    : mins < 2880 ? `${Math.round(mins / 60)} h`
+    : `${Math.round(mins / 1440)} d`;
+  const live = !["complete", "failed", "cancelled"].includes(job.status);
+  el.innerHTML = `
+    <span class="eyebrow">Job status</span>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:var(--s1)">
+      <span class="tag t-${esc(job.status)}">${esc(job.status)}</span>
+      <span class="num muted">${when ? (live ? `started ${when} ago` : when) : ""}</span>
+    </div>
+    <div class="bar"><i style="width:${pct}%${job.status === "failed" ? ";background:var(--bad)" : ""}"></i></div>
+    <div class="stages">${
+      job.status === "failed" ? "Failed. Open the run for the error."
+      : job.status === "cancelled" ? "Cancelled and refunded."
+      : job.status === "complete" ? "Solve finished, results are loaded."
+      : idx >= 0 ? `Stage ${idx + 1} of ${STAGES.length}: ${esc(job.status.replace(/_/g, " "))}`
+      : esc(job.status)}</div>`;
+}
+
+// Signed URL, because the bucket is private: RLS lets you read only your own
+// jobs/<uid>/ folder, and this hands the browser a short-lived link to it.
+const signed = async (path, secs = 3600) => {
+  const { data, error } = await sb.storage.from("cfd-files").createSignedUrl(path, secs);
+  if (error) throw error;
+  return data.signedUrl;
+};
+
+// A finished run shows its solution surface; anything else shows the raw
+// geometry, so the viewport is never empty while you wait.
+// The cache key has to include which run's fields go with the surface, not just
+// the surface. Keying on the path alone means selecting a run whose results glb
+// resolves to a path already on screen skips the whole function — so the field
+// dropdown stays empty and the post-processing bar never appears, on a run that
+// has fields. Nothing errors; the results are simply not offered.
+// Loading the model is a reconciler, not a per-call action.
+//
+// render() runs many times in the first few hundred milliseconds — boot() is
+// invoked once directly and once by onAuthStateChange, and four Realtime
+// channels all point at refresh(). Any scheme that tries to cancel or dedupe
+// individual overlapping calls ends up cancelling the last one standing too,
+// and the viewport stays empty with nothing thrown and nothing logged.
+//
+// So: render() only says "the selection may have changed". A single loop owns
+// the viewport, re-reads the CURRENT selection each time round, and stops when
+// what is drawn matches what is selected. Overlapping requests collapse into
+// that one loop by construction rather than by bookkeeping.
+let shown = null, syncing = false;
+
+function desiredModel() {
+  const sim = state.sims.find((x) => x.id === state.selSim);
+  const geom = sim && state.geoms.find((g) => g.id === sim.geometry_id);
+  const job = state.jobs.find((j) => j.id === state.selJob);
+  const path = job?.results_glb_path || geom?.glb_path || null;
+  const fields = job?.results_glb_path ? (job.results_fields || {}) : {};
+  return { path, fields, key: path + "|" + Object.keys(fields).sort().join(",") };
+}
+
+function showModel() {
+  if (syncing) return;                   // the loop will pick up the new state
+  syncing = true;
+  queueMicrotask(async () => {
+    try {
+      await viewerReady;
+      for (let guard = 0; guard < 6; guard++) {
+        const { path, fields, key } = desiredModel();
+        if (key === shown) return;
+        const sameGeometry = shown && shown.split("|")[0] === path;
+
+        const sel = $("fieldSel"), names = Object.keys(fields);
+        $("post").classList.toggle("hidden", !names.length);
+        sel.innerHTML = names.map((n) => `<option value="${esc(n)}">${esc(fields[n].label || n)}</option>`).join("");
+        state.fields = fields;
+
+        if (!path) { shown = key; await window.renderGlb(null); continue; }
+        try {
+          // Redrawing the same surface would reset the camera mid-comparison,
+          // so only reload the geometry when it has actually changed.
+          if (!sameGeometry) await window.renderGlb(await signed(path));
+          if (names.length) await loadField(); else window.applyField(null);
+          applyClip();
+          shown = key;
+        } catch (e) {
+          toast("Could not draw the model: " + (e.message || e));
+          return;                        // do not spin on a failing asset
+        }
+      }
+    } finally { syncing = false; }
+  });
+}
+
+// Fields are raw Float32 blobs, one value per vertex — fetch, hand to the shader.
+async function loadField() {
+  const name = $("fieldSel").value, f = state.fields?.[name];
+  if (!f) return window.applyField(null);
+  try {
+    const buf = await (await fetch(await signed(f.path))).arrayBuffer();
+    const values = new Float32Array(buf);
+    // Kept for the Statistics panel — stats must come from the buffer that is
+    // actually colouring the surface, not from stored min/max metadata.
+    // A pin records the value of the field it was taken with. Leaving pins up
+    // across a field change would relabel a pressure reading as a velocity, so
+    // they go when the field does.
+    if (state.pins.length && state.pins[0].field !== name) clearPins();
+    state.fieldValues = values;
+    window.applyField(values, f.min, f.max);
+    $("legMin").value = fmtNum(f.min);
+    $("legMax").value = fmtNum(f.max);
+    applyColourMap();
+    renderLegendTicks(f.min, f.max);
+    renderStats();
+  } catch (e) {
+    toast("Could not load " + name + ": " + (e.message || e));
+  }
+}
+
+function applyClip() {
+  const axis = $("clipAxis")?.value;
+  window.setClip(axis || null, axis ? +$("clipT").value : null);
+  renderStats();          // the statistics describe the visible surface
+}
+
+// ── post-processing controls ─────────────────────────────────────────────────
+// Coerce once, then decide. The previous version tested Math.abs(v) but called
+// v.toExponential() on the RAW value, so anything non-numeric that coerces to a
+// small number — `[]` coerces to 0 — threw TypeError and took the whole legend
+// render down with it. Values here come from results_fields, which is jsonb.
+const fmtNum = (v) => {
+  if (v == null || v === "") return "";
+  const n = +v;
+  if (!Number.isFinite(n)) return "n/a";
+  const a = Math.abs(n);
+  return (a >= 1000 || (a < 0.01 && n !== 0)) ? n.toExponential(2) : n.toFixed(2);
+};
+
+function applyRange() {
+  const lo = parseFloat($("legMin").value), hi = parseFloat($("legMax").value);
+  if (!window.setRange(lo, hi)) {
+    toast("Colour range needs a minimum below the maximum.");
+    return resetRange();
+  }
+  renderLegendTicks(lo, hi);
+}
+function resetRange() {
+  const f = state.fields?.[$("fieldSel")?.value];
+  if (!f) return;
+  $("legMin").value = fmtNum(f.min); $("legMax").value = fmtNum(f.max);
+  window.setRange(f.min, f.max);
+  renderLegendTicks(f.min, f.max);
+}
+function applyColourMap() {
+  const n = $("cmapSel").value;
+  const bands = window.setBands($("bandSel")?.value || 0);
+  window.setColourMap(n);
+  $("legendBar").style.background = window.colourMapCss(n, bands);
+}
+// ── ribbon ───────────────────────────────────────────────────────────────────
+const pressed = (id, on) => $(id).setAttribute("aria-pressed", String(on));
+
+function ribbonClip() {
+  const el = $("clipCtl"), show = el.classList.contains("hidden");
+  el.classList.toggle("hidden", !show);
+  pressed("rbClip", show);
+  if (!show) { $("clipAxis").value = ""; applyClip(); }   // off = actually off
+}
+function ribbonLegend() {
+  const el = $("post"), job = state.jobs.find((j) => j.id === state.selJob);
+  const has = !!(job?.results_fields && Object.keys(job.results_fields).length);
+  if (!has) return toast("This run has no field data to show.");
+  const show = el.classList.contains("hidden");
+  el.classList.toggle("hidden", !show);
+  pressed("rbLegend", show);
+}
+let wireOn = false;
+// Which entity a click selects. Face is what the wheel picker needs; body
+// selects every face of the solid the clicked face belongs to, which is how
+// you grab a whole wheel that was modelled as one part; tangent grows across
+// smooth joins. SimScale offers solid, face, edge and node, and the last two
+// need a mesh rather than a CAD model, so they are not offered here.
+window.selectionMode = "face";
+
+function ribbonNav() {
+  const el = $("navPanel"), show = el.classList.contains("hidden");
+  el.classList.toggle("hidden", !show);
+  pressed("rbNav", show);
+  if (show) renderNav();
+}
+
+function renderNav() {
+  const el = $("navPanel"), n = window.navSettings();
+  const seg = (name, opts, value, fn) => `
+    <div class="seg">${opts.map(([v, label]) => `
+      <button aria-pressed="${v === value}" onclick="${fn}('${v}')">${esc(label)}</button>`).join("")}
+    </div>`;
+  const preset = n.preset;
+  const bindings = {
+    simscale: [["Rotate", "left drag"], ["Pan", "middle, or ctrl + left"],
+               ["Zoom", "right drag, wheel, or alt + left"]],
+    fusion:   [["Rotate", "left drag"], ["Pan", "middle, or ctrl + left"], ["Zoom", "wheel"]],
+    onshape:  [["Rotate", "left or right drag"], ["Pan", "middle, or ctrl + left"], ["Zoom", "wheel"]],
+  }[preset] || [];
+
+  el.innerHTML = `
+    <div class="row"><b style="font-size:13px">Controls</b>
+      <button class="btn" style="height:20px;padding:0 6px" onclick="ribbonNav()">Close</button></div>
+
+    <div>
+      <span class="eyebrow">Mouse</span>
+      ${seg("preset", n.presets, preset, "navPreset")}
+      <dl style="margin-top:6px">${bindings.map(([k, v]) =>
+        `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    </div>
+
+    <div>
+      <span class="eyebrow">Selecting</span>
+      ${seg("sel", [["face", "Face"], ["body", "Body"], ["tangent", "Tangent"]],
+            window.selectionMode, "navSelect")}
+      <div class="note" style="margin-top:4px">
+        ${window.selectionMode === "face" ? "One face per click."
+          : window.selectionMode === "body" ? "Every face of the part you click."
+          : "The face you click and everything joined to it smoothly."}
+      </div>
+    </div>
+
+    <div class="row"><label>Camera glide</label>
+      <input type="checkbox" ${n.damping ? "checked" : ""} onchange="navDamping(this.checked)"></div>
+    <div class="row"><label>Invert zoom</label>
+      <input type="checkbox" ${n.invertZoom ? "checked" : ""} onchange="navInvert(this.checked)"></div>
+    <div class="row"><label>Speed</label>
+      <input type="range" min="0.4" max="2" step="0.1" value="${n.speed}"
+             style="width:110px" oninput="navSpeed(this.value)"></div>`;
+}
+
+function navPreset(v) { window.setNav({ preset: v }); renderNav(); }
+function navSelect(v) { window.selectionMode = v; renderNav(); }
+function navDamping(on) { window.setNav({ damping: !!on }); renderNav(); }
+function navInvert(on) { window.setNav({ invertZoom: !!on }); renderNav(); }
+function navSpeed(v) { window.setNav({ speed: +v }); }
+
+function ribbonWire() {
+  wireOn = !wireOn; window.setWireframe(wireOn);
+  pressed("rbWire", wireOn);
+}
+function ribbonCompare() {
+  setTab("cmp");
+  if (state.compare.size < 2) toast("Tick two or more runs in the Runs list to compare them.");
+}
+// ── inspect point ────────────────────────────────────────────────────────────
+// Pins live in state so they survive a re-render, and carry the field they were
+// taken with — a pressure reading relabelled as velocity because someone changed
+// the dropdown afterwards would be a lie, so switching field clears them.
+function ribbonInspect() {
+  state.inspecting = !state.inspecting;
+  pressed("rbInspect", state.inspecting);
+  document.querySelector(".viewport").classList.toggle("inspecting", state.inspecting);
+  if (state.inspecting && !state.fieldValues) {
+    toast("Load a run with results first. There is no field to read.");
+    state.inspecting = false;
+    pressed("rbInspect", false);
+    document.querySelector(".viewport").classList.remove("inspecting");
+  }
+}
+
+function addPin(ev) {
+  if (!state.inspecting) return;
+  const hit = window.inspectAt(ev.clientX, ev.clientY);
+  if (!hit) return toast("No surface there. Click on the car.");
+  if (hit.value == null) return toast("That point has no value for this field.");
+  const f = state.fields?.[$("fieldSel")?.value];
+  state.pins.push({
+    world: hit.world, value: hit.value,
+    field: $("fieldSel")?.value, label: f?.label || $("fieldSel")?.value,
+  });
+  drawPins();
+}
+
+function clearPins() { state.pins = []; drawPins(); }
+
+function drawPins() {
+  const host = $("pins");
+  if (!host) return;
+  host.innerHTML = "";
+  state.pins.forEach((p, i) => {
+    const s = window.projectPoint(p.world);
+    if (!s) return;                        // behind the camera
+    const el = document.createElement("div");
+    el.className = "pin";
+    el.style.left = s.x + "px"; el.style.top = s.y + "px";
+    el.innerHTML = `<i></i><b title="Click to remove">${esc(fmtNum(p.value))}</b>`;
+    el.querySelector("b").onclick = () => { state.pins.splice(i, 1); drawPins(); };
+    host.appendChild(el);
+  });
+}
+
+function ribbonStats() {
+  const show = $("statsPanel").classList.contains("hidden");
+  $("statsPanel").classList.toggle("hidden", !show);
+  pressed("rbStats", show);
+  renderStats();
+}
+function ribbonReset() {
+  window.setView("iso");
+  resetRange();
+  $("clipAxis").value = ""; applyClip();
+  $("clipCtl").classList.add("hidden"); pressed("rbClip", false);
+  if (wireOn) ribbonWire();
+  $("cmapSel").value = "viridis";
+  $("bandSel").value = "0";
+  applyColourMap();
+}
+
+// Statistics over the field buffer currently colouring the surface. Per-vertex,
+// whole surface: that is what is computable honestly from what the browser
+// has, and the label says so. (Area weighting needs triangle areas; C2 covers
+// upgrading this once per-face groups arrive with face picking.)
+function renderStats() {
+  const panel = $("statsPanel");
+  if (panel.classList.contains("hidden")) return;
+  const name = $("fieldSel")?.value, f = state.fields?.[name], v = state.fieldValues;
+  if (!f || !v?.length) {
+    panel.innerHTML = `<span class="eyebrow">Statistics</span>
+      <p class="note">No field loaded: pick a run with results.</p>`;
+    return;
+  }
+  const s = window.fieldStats();
+  if (!s) {
+    panel.innerHTML = `<span class="eyebrow">Statistics</span>
+      <p class="note">Nothing to measure: the cutting plane has removed the whole surface.</p>`;
+    return;
+  }
+  // Areas are square metres on a car about 0.2 m long, so cm² reads better than
+  // a string of leading zeros.
+  const cm2 = s.area * 1e4;
+  panel.innerHTML = `
+    <span class="eyebrow">Statistics: ${esc(f.label || name)}</span>
+    <dl>
+      <dt>Minimum</dt><dd class="num">${fmtNum(s.min)}</dd>
+      <dt>Maximum</dt><dd class="num">${fmtNum(s.max)}</dd>
+      <dt>Mean</dt><dd class="num">${fmtNum(s.mean)}</dd>
+      <dt>Std deviation</dt><dd class="num">${fmtNum(s.std)}</dd>
+      <dt>Wetted area</dt><dd class="num">${fmtNum(cm2)} cm²</dd>
+      <dt>Triangles</dt><dd class="num">${s.triangles.toLocaleString()}</dd>
+    </dl>
+    <p class="note">Mean and deviation are weighted by triangle area, so a
+      finely-meshed nose does not outvote a large flat panel.${
+      s.clipping ? ` Cut plane is on: ${s.skipped.toLocaleString()} triangles
+      excluded.` : ""}</p>`;
+}
+
+// Quartiles only — the endpoints are the two inputs flanking the bar.
+function renderLegendTicks(min, max) {
+  const el = $("legendTicks");
+  if (!el || !isFinite(min) || !isFinite(max)) return;
+  el.innerHTML = [0.25, 0.5, 0.75].map((t) =>
+    `<i style="left:${t * 100}%"></i>` +
+    `<span style="left:${t * 100}%">${fmtNum(min + (max - min) * t)}</span>`).join("");
+}
+function saveShot() {
+  const job = state.jobs.find((j) => j.id === state.selJob);
+  const field = $("fieldSel")?.value;
+  window.snapshot([job?.file_name?.replace(/\.\w+$/, "") || "geometry", field, job?.id?.slice(0, 8)]
+    .filter(Boolean).join("_"));
+}
+
+// Turn the uploaded STEP into something the browser can draw. The service runs
+// the OCC kernel; without it we still have a valid job, just no 3D preview.
+// Derive the face labels from the STEP itself. The worker cannot apply a single
+// boundary condition without them, and this runs BEFORE the job row is inserted
+// so a geometry we cannot label never reaches the charge in on-new-job.
+// Returns the label path, or null with the user told why.
+async function inferLabels(stepPath, destPath) {
+  if (!TESSELLATE_URL) return null;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(TESSELLATE_URL + "/infer_labels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ step_path: stepPath, dest_path: destPath }),
+    });
+    const out = await r.json();
+    // 422 means the service looked and does not believe this is a car in a wind
+    // tunnel. It says why, per reason — surface that rather than a status code,
+    // because "422" tells the user nothing they can act on.
+    const why = (out.warnings || []).join("; ");
+    if (r.status === 422) {
+      toast("Could not label this geometry: " + (why || out.error)
+        + ". Attach an entity_labels.csv from the Fusion plugin instead.", 12000);
+      return null;
+    }
+    // 409 is the service's write-once guard: labels are already at that path.
+    // Nothing was overwritten and nothing is wrong — the run can use them.
+    if (r.status === 409) return destPath;
+    if (!r.ok) throw new Error(out.error || r.status);
+    if (out.confident === false) {
+      toast("Labelled, but not confidently: " + why
+        + ". Check the result before trusting it.", 12000);
+    }
+    return out.label_path || destPath;
+  } catch (e) {
+    toast("Automatic face labelling failed: " + (e.message || e), 8000);
+    return null;
+  }
+}
+
+async function tessellate(geomId, stepPath) {
+  if (!TESSELLATE_URL) return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(TESSELLATE_URL + "/tessellate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ step_path: stepPath }),
+    });
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.status);
+    await sb.from("geometries").update({
+      glb_path: out.glb_path, face_count: out.face_count,
+      solid_count: out.solid_count, triangle_count: out.triangle_count, bbox: out.bbox,
+    }).eq("id", geomId);
+    // Every model is tessellated face by face now, so there is no flat-mesh
+    // case left to warn about. A geometry with no faces at all did not load.
+    if (Array.isArray(out.faces) && out.faces.length === 0) {
+      toast("This geometry has no faces to pick.", 7000);
+    }
+    refresh();
+  } catch (e) {
+    toast("Geometry preview unavailable: " + (e.message || e), 6000);
+  }
+}
+
+// ── charts ───────────────────────────────────────────────────────────────────
+// Hand-drawn SVG rather than a charting library: two line charts do not justify
+// 200 KB of dependency, and this way the axes match the rest of the type.
+// Series colours for a white ground. The previous set was mixed for a dark
+// background — on paper those pastels sit at roughly the same lightness as the
+// page and a thin 1.5px trace disappears into it. These are all dark enough to
+// hold a hairline stroke, and separated in hue rather than only in lightness so
+// they stay distinguishable to a red-green colour-blind reader.
+// tests/test_results_pane.mjs asserts this matches workbench-results.js.
+const SERIES_COLOURS = ["#1d4e89", "#2e7d5b", "#b0651a", "#a8324a", "#5b4b9e", "#17706e"];
+
+function lineChart(series, xs, { log = false, unit = "" } = {}) {
+  const W = 720, H = 170, L = 52, R = 12, T = 10, B = 22;
+  const pts = series.filter((s) => s.values?.some((v) => v != null));
+  if (!pts.length || !xs?.length) return `<p class="empty">No data.</p>`;
+
+  const all = pts.flatMap((s) => s.values).filter((v) => v != null && (!log || v > 0));
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (log) { lo = Math.log10(lo); hi = Math.log10(hi); }
+  if (hi === lo) { hi = lo + 1; }
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+
+  const x0 = xs[0], x1 = xs[xs.length - 1] || 1;
+  const px = (x) => L + ((x - x0) / Math.max(x1 - x0, 1e-9)) * (W - L - R);
+  const py = (v) => {
+    const t = ((log ? Math.log10(v) : v) - lo) / (hi - lo);
+    return H - B - t * (H - T - B);
+  };
+
+  const ticks = 4;
+  const grid = Array.from({ length: ticks + 1 }, (_, i) => {
+    const v = lo + ((hi - lo) * i) / ticks;
+    const y = H - B - (i / ticks) * (H - T - B);
+    const label = log ? `1e${Math.round(v)}`
+      : Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0) ? v.toExponential(1) : v.toFixed(3);
+    return `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
+            <text class="axis" x="${L - 6}" y="${y + 3}" text-anchor="end">${label}</text>`;
+  }).join("");
+
+  const paths = pts.map((s, i) => {
+    const d = s.values.map((v, k) => (v == null || (log && v <= 0))
+      ? null : `${px(xs[k])},${py(v)}`).filter(Boolean).join(" L ");
+    return d ? `<path d="M ${d}" stroke="${SERIES_COLOURS[i % SERIES_COLOURS.length]}"/>` : "";
+  }).join("");
+
+  const legend = pts.map((s, i) =>
+    `<span><i class="swatch" style="background:${SERIES_COLOURS[i % SERIES_COLOURS.length]}"></i>${esc(s.name)}</span>`).join("");
+
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      ${grid}
+      <line class="grid" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
+      <text class="axis" x="${L}" y="${H - 7}">${Math.round(x0)}</text>
+      <text class="axis" x="${W - R}" y="${H - 7}" text-anchor="end">${Math.round(x1)} iterations${unit ? " · " + unit : ""}</text>
+      ${paths}
+    </svg><div class="chart-legend">${legend}</div>`;
+}
+
+// Percent change against the baseline run.
+//
+// Sign convention, because it is the easy thing to ship backwards: these are
+// drag and lift in newtons, where a body pointing into the flow gives negative
+// force. What a team wants is "less drag than the baseline", so compare
+// magnitudes and call a smaller magnitude an improvement, whatever the sign.
+// A raw (v - b) would paint -0.19 N as a 10% regression against -0.17 N when it
+// is actually more drag, and would flip meaning entirely if the sign convention
+// ever changed.
+function deltaHtml(v, b) {
+  if (v == null || b == null || !isFinite(v) || !isFinite(b) || b === 0) return "";
+  const pct = ((Math.abs(v) - Math.abs(b)) / Math.abs(b)) * 100;
+  if (!isFinite(pct) || Math.abs(pct) < 0.05) return `<span class="muted"> ±0%</span>`;
+  return `<span class="${pct < 0 ? "good" : "bad"}"> ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%</span>`;
+}
+
+function setTab(name) {
+  state.tab = name;
+  for (const el of document.querySelectorAll(".tab")) el.classList.toggle("sel", el.dataset.tab === name);
+  for (const id of ["runs", "conv", "force", "cmp"]) $(id).classList.toggle("hidden", id !== name);
+  renderCharts();
+}
+
+// Run-vs-run. The question every team actually asks is "did that change make it
+// faster", which needs the same numbers side by side and the force traces on one
+// pair of axes — not two screenshots held up next to each other.
+function renderCompare() {
+  const picked = state.jobs.filter((j) => state.compare.has(j.id));
+  $("cmpCount").textContent = picked.length || "";
+  const pane = $("cmp");
+  if (picked.length < 2) {
+    pane.innerHTML = `<p class="empty">Tick two or more runs to compare them.</p>`;
+    return;
+  }
+  // Each run carries its own derived quantities, because two runs being
+  // compared may have been launched at different velocities against different
+  // geometry versions — which is exactly when a coefficient is worth more than
+  // a force.
+  pane.innerHTML = WBResults.comparePane(resultCtx(picked[0], {
+    jobs: picked,
+    derivedFor: Object.fromEntries(picked.map((j) => [j.id, resultCtx(j).derived])),
+    setupFor: Object.fromEntries(picked.map((j) => [j.id, resultCtx(j).setup])),
+  }));
+}
+
+// A chart on its own says the residuals went down. Whether they went down far
+// enough is the actual question, so every pane pairs the trace with the verdict.
+function resultCtx(job, extra) {
+  const sim = job && state.sims.find((x) => x.id === job.simulation_ref);
+  const geom = sim && state.geoms.find((g) => g.id === sim.geometry_id);
+  const setup = CFD.withDefaults(job?.setup_snapshot ?? sim?.setup);
+  return Object.assign({
+    job, setup,
+    derived: !job ? null : CFD.derive({
+      inlet_velocity: job.inlet_velocity, refine_level: job.refine_level,
+      iteration_count: job.iteration_count, debug_mesh: job.debug_mesh,
+    }, geom, setup),
+    helpers: { lineChart, esc, deltaHtml },
+  }, extra);
+}
+
+function renderCharts() {
+  const job = state.jobs.find((j) => j.id === state.selJob);
+  const ctx = resultCtx(job);
+  $("conv").innerHTML = job?.plots?.residuals ? WBResults.convergencePane(ctx)
+    : `<p class="empty">${job ? "No convergence data for this run." : "Select a run."}</p>`;
+  $("force").innerHTML = job?.plots?.forces ? WBResults.forcePane(ctx)
+    : `<p class="empty">${job ? "No force history for this run." : "Select a run."}</p>`;
+  renderCompare();
+}
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Up/Down walk the setup tree, Left/Right collapse and expand. Reaching the
+// mesh settings should not require the mouse — and a tree without arrow keys is
+// the sort of thing that only ever gets noticed by the person who cannot use a
+// mouse that day.
+document.addEventListener("keydown", (ev) => {
+  if (!state.selSim || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const tag = (ev.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "select" || tag === "textarea") return;
+  if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(ev.key)) return;
+
+  const nodes = [...document.querySelectorAll("#tree .row[data-node]")].map((e) => e.dataset.node);
+  if (!nodes.length) return;
+  const i = nodes.indexOf(state.selNode);
+
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    const next = i < 0 ? 0 : Math.max(0, Math.min(nodes.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)));
+    state.selNode = nodes[next];
+  } else {
+    // Collapse or expand the header this node sits under.
+    const tree = WBPanels.tree(panelCtx());
+    const idx = tree.findIndex((n) => n.id === state.selNode);
+    const header = idx < 0 ? null
+      : [...tree.slice(0, idx)].reverse().find((n) => n.kind === "header");
+    if (!header) return;
+    ev.key === "ArrowLeft" ? state.collapsed.add(header.id) : state.collapsed.delete(header.id);
+  }
+  ev.preventDefault();
+  render();
+  document.querySelector(`#tree .row[data-node="${state.selNode}"]`)
+    ?.scrollIntoView({ block: "nearest" });
+});
+
+async function newProject() {
+  const name = await ask({ title: "New project", input: "", ok: "Create" });
+  if (!name) return;
+  const { error } = await sb.from("projects").insert({ user_id: me.id, name });
+  if (error) return toast(error.message);
+  refresh();
+}
+
+// The geometry edit controls. They live in the host rather than in the panels
+// module because applyEdit() reads them by id and the operation list they build
+// is replayed on the B-rep, not on anything the setup document describes.
+// Tag the panels' explanatory paragraphs so they can be collapsed as a group.
+// Done here rather than in workbench-panels.js because it is a presentation
+// decision about the column they land in, not about what each panel says: and
+// tagging fifteen panels by hand is fifteen chances to miss one.
+//
+// A paragraph is prose if it carries no control and is longer than a label.
+function markNotes(html) {
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  for (const p of box.querySelectorAll("p")) {
+    if (p.querySelector("input,select,button,a")) continue;
+    if (p.textContent.trim().length < 45) continue;
+    if (p.classList.contains("err")) continue;      // errors are not notes
+    p.classList.add("panel-note");
+  }
+  return box.innerHTML;
+}
+
+// Remembered, because a preference you have to set on every page load is not a
+// preference. Falls back to shown if storage is unavailable (private mode).
+function notesOn() {
+  try { return localStorage.getItem("tf.notes") !== "off"; } catch (e) { return true; }
+}
+function applyNotes() {
+  const on = notesOn();
+  $("insp").classList.toggle("notes-off", !on);
+  $("noteToggle")?.setAttribute("aria-pressed", String(on));
+}
+function toggleNotes() {
+  try { localStorage.setItem("tf.notes", notesOn() ? "off" : "on"); } catch (e) {}
+  applyNotes();
+}
+
+function geometryEditControls(ctx) {
+  if (!ctx.geometry?.step_path) return "";
+  const v = ctx.version;
+  return `
+    <div class="pane-head" style="padding-left:0;padding-right:0"><span class="eyebrow">Edit geometry</span></div>
+    <div class="edit-grid">
+      <label class="field"><span class="eyebrow">Scale</span>
+        <input id="eScale" type="number" step="0.05" value="1"></label>
+      <label class="field"><span class="eyebrow">Rotate °</span>
+        <input id="eRot" type="number" step="5" value="0"></label>
+      <label class="field"><span class="eyebrow">About</span>
+        <select id="eRotAxis"><option>z</option><option>y</option><option>x</option></select></label>
+      <label class="field"><span class="eyebrow">Mirror</span>
+        <select id="eMirror"><option value="">None</option><option value="x">X</option>
+          <option value="y">Y</option><option value="z">Z</option></select></label>
+      <label class="field"><span class="eyebrow">Move X: m</span>
+        <input id="eDx" type="number" step="0.005" value="0"></label>
+      <label class="field"><span class="eyebrow">Move Y: m</span>
+        <input id="eDy" type="number" step="0.005" value="0"></label>
+      <label class="field"><span class="eyebrow">Move Z: m</span>
+        <input id="eDz" type="number" step="0.005" value="0"></label>
+    </div>
+    <button id="editBtn" class="btn btn-block" onclick="wbAction('edit')">Save as v${v + 1}</button>
+    <p class="muted" style="margin:var(--s2) 0 var(--s4);font-size:11px">
+      Edits are replayed on the CAD solid, not the display mesh: SimScale meshes
+      the new STEP.</p>`;
+}
+
+// Save writes both halves: the four columns the billing functions and the
+// Fusion plugin already know about, and the setup document behind the manual
+// panels. They go in one update so a case can never be half-saved.
+async function saveSim(id) {
+  const s = state.sims.find((x) => x.id === id);
+  if (!s) return;
+  const patch = {
+    inlet_velocity: Math.max(1, Math.min(100, +s.inlet_velocity || 20)),
+    refine_level: Math.max(1, Math.min(5, Math.round(+s.refine_level) || 3)),
+    iteration_count: Math.max(1, Math.min(3000, Math.round(+s.iteration_count) || 1000)),
+    debug_mesh: !!s.debug_mesh,
+    updated_at: new Date().toISOString(),
+  };
+  if (state.draft && state.draftSim === id) patch.setup = state.draft;
+  const { error } = await sb.from("simulations").update(patch).eq("id", id);
+  if (error) return toast(error.message, 8000);
+  state.draft = state.draftSim = null;
+  toast("Setup saved.");
+  refresh();
+}
+
+// How many edits deep this geometry sits. v1 is the upload.
+function geometryVersion(g) {
+  let n = 1, seen = new Set();
+  while (g?.derived_from && !seen.has(g.id)) {
+    seen.add(g.id);
+    g = state.geoms.find((x) => x.id === g.derived_from);
+    n++;
+  }
+  return n;
+}
+
+// Apply the edit to the CAD solid and branch: a new geometry version plus a
+// simulation that points at it, so the previous version keeps its runs and you
+// can compare v1 against v2 rather than overwriting the thing you measured.
+async function applyEdit(simId) {
+  const s = state.sims.find((x) => x.id === simId);
+  const g = state.geoms.find((x) => x.id === s?.geometry_id);
+  if (!g?.step_path) return toast("This simulation has no geometry.");
+
+  const ops = [];
+  const scale = +$("eScale").value, rot = +$("eRot").value, mirror = $("eMirror").value;
+  const [dx, dy, dz] = ["eDx", "eDy", "eDz"].map((id) => +$(id).value || 0);
+  if (scale && scale !== 1) ops.push({ type: "scale", factor: scale });
+  if (rot) ops.push({ type: "rotate", axis: $("eRotAxis").value, degrees: rot });
+  if (mirror) ops.push({ type: "mirror", axis: mirror });
+  if (dx || dy || dz) ops.push({ type: "translate", dx, dy, dz });
+  if (!ops.length) return toast("Nothing to change. Set a scale, rotation, mirror or move.");
+
+  const btn = $("editBtn");
+  btn.disabled = true; btn.textContent = "Editing…";
+  try {
+    const geomId = crypto.randomUUID();
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(TESSELLATE_URL + "/transform", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ step_path: g.step_path, ops, dest_prefix: `jobs/${me.id}/${geomId}` }),
+    });
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.status);
+
+    const version = geometryVersion(g) + 1;
+    const { data: ng, error: ge } = await sb.from("geometries").insert({
+      id: geomId, project_id: g.project_id, user_id: me.id,
+      name: g.name.replace(/ v\d+$/, "") + ` v${version}`,
+      step_path: out.step_path, glb_path: out.glb_path,
+      triangle_count: out.triangle_count, bbox: out.bbox,
+      face_count: g.face_count, solid_count: g.solid_count,
+      // Carry the labels forward. A rigid transform or uniform scale does not
+      // change which face is the inlet, and dropping this leaves v2 with no
+      // boundary conditions at all — it would solve, and hand back a drag figure
+      // the Compare tab would happily diff against v1's.
+      label_path: g.label_path,
+      derived_from: g.id, edit_ops: ops,
+    }).select().single();
+    if (ge) throw ge;
+
+    const { data: ns, error: se } = await sb.from("simulations").insert({
+      project_id: s.project_id, geometry_id: ng.id, user_id: me.id,
+      name: s.name.replace(/ \(v\d+\)$/, "") + ` (v${version})`,
+      inlet_velocity: s.inlet_velocity, refine_level: s.refine_level,
+      iteration_count: s.iteration_count, debug_mesh: s.debug_mesh,
+    }).select().single();
+    if (se) throw se;
+
+    state.selSim = ns.id; state.selJob = null;
+    toast(`Saved as v${version}. Run it to compare against v${version - 1}.`);
+    await refresh();
+  } catch (e) {
+    toast(e.message || String(e), 8000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// The statuses refund_job will accept — anything before the solver has burned
+// real SimScale time. Kept in step with the full_refund list in
+// 0003_billing_functions.sql; offering the button for a status the server will
+// refuse is worse than not offering it.
+const REFUNDABLE = new Set(["draft", "pending", "downloading", "uploading_geometry",
+                            "processing", "creating_simulation", "meshing"]);
+
+async function cancelRun(jobId, cost) {
+  if (!await ask({ title: "Cancel run?", body: `This refunds ${cost} credits.`, ok: "Cancel run" })) return;
+  const { data, error } = await sb.functions.invoke("refund-job", { body: { job_id: jobId } });
+  if (error || data?.error) {
+    return toast("Could not cancel: " + (data?.error || error?.message || "unknown error"), 8000);
+  }
+  state.selJob = null;
+  // data can be present but shapeless on an unexpected 2xx; guard the amount so a
+  // successful cancel never throws a TypeError and swallows its own confirmation.
+  toast(data?.refunded != null ? `Refunded ${data.refunded} credits.` : "Run cancelled.");
+  refresh();
+}
+
+// Queue a run for an existing simulation, reusing its geometry.
+async function runSim(id) {
+  const s = state.sims.find((x) => x.id === id);
+  const g = state.geoms.find((x) => x.id === s.geometry_id);
+  if (!g?.step_path) return toast("This simulation has no geometry yet.");
+  // Unsaved edits would otherwise run against the last saved case, which is the
+  // one thing worse than not running at all: a result labelled with settings it
+  // was not produced under.
+  if (state.draft && state.draftSim === id) await saveSim(id);
+  const { error } = await sb.from("jobs").insert({
+    user_id: me.id, project_id: s.project_id, simulation_ref: s.id,
+    status: "pending", file_name: g.name, step_path: g.step_path, label_path: g.label_path,
+    iteration_count: s.iteration_count, refine_level: s.refine_level,
+    inlet_velocity: s.inlet_velocity, debug_mesh: s.debug_mesh,
+    setup_snapshot: setupOf(s),
+    // What the solver divides its forces by to report a coefficient. Carried on
+    // the job, not looked up later, so a run keeps the area it was solved with
+    // even if the geometry row is edited afterwards.
+    frontal_area_m2: g.frontal_area_m2 ?? null,
+    reference_length_m: g.bbox?.size?.[0] ?? null,
+  });
+  toast(error ? error.message : "Run queued.");
+  refresh();
+}
+
+// ── Automatic CFD: pick a STEP, upload, create the whole tree, queue the run ──
+// Resolve on cancel as well as on choose. Dismissing the labels dialog is a
+// normal outcome — it is asked for before the upload and the caller handles a
+// null — so the
+// expected path through this dialog is to dismiss it — and `change` does not
+// fire when a file dialog is dismissed, which left Automatic CFD waiting on a
+// promise that never settled and the button stuck on "Uploading…" until reload.
+function pick(input) {
+  return new Promise((res) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; res(v); } };
+    input.value = "";                       // re-picking the same file must re-fire
+    input.onchange = () => finish(input.files[0] || null);
+    input.oncancel = () => finish(null);    // supported in current browsers
+    // Fallback for browsers without `cancel`: the window regains focus when the
+    // dialog closes either way, so settle shortly after if change never came.
+    const onFocus = () => setTimeout(() => finish(input.files[0] || null), 400);
+    window.addEventListener("focus", onFocus, { once: true });
+    input.click();
+  });
+}
+
+// -- preparing a raw car -----------------------------------------------------
+// The Fusion add-in ships a finished flow region: a box with the car already
+// cut out of it, plus the CSV naming every face. Here the user brings the car
+// itself, so the box has to be built around it in the browser first. That is
+// what this whole section is.
+//
+// state.prep holds everything the dialog needs and is the only thing the panel
+// reads, so the box on screen and the numbers beside it cannot disagree.
+
+async function svc(path, body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(TESSELLATE_URL + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json",
+               Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
+  });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.error || `The geometry service returned ${r.status}.`);
+  return out;
+}
+
+// The same rule the service uses, run here so changing the radius re-detects
+// instantly instead of re-uploading and re-tessellating the car.
+function detectWheels(faces, radiusM, tol) {
+  const groups = [];
+  for (const f of faces) {
+    if (f.type !== "cylinder" || !f.axis) continue;
+    if (Math.abs(Math.abs(f.axis[1]) - 1) > 0.05) continue;      // not about Y
+    const r = f.radius_m;
+    if (!(r >= radiusM * (1 - tol) && r <= radiusM * (1 + tol))) continue;
+    const near = r * 0.5;
+    let g = groups.find((q) => Math.abs(q.x - f.axis_x_m) < near
+                            && Math.abs(q.z - f.axis_z_m) < near);
+    if (!g) { g = { x: f.axis_x_m, z: f.axis_z_m, ys: [], radii: [], faces: [] }; groups.push(g); }
+    g.ys.push(f.axis_y_m); g.radii.push(r); g.faces.push(f.index);
+  }
+  return groups.sort((a, b) => a.x - b.x || a.z - b.z).map((g, i) => ({
+    name: `Wheel_${i + 1}`,
+    radius_m: +Math.max(...g.radii).toFixed(6),
+    cx_m: +g.x.toFixed(6),
+    cy_m: +(g.ys.reduce((t, v) => t + v, 0) / g.ys.length).toFixed(6),
+    cz_m: +g.z.toFixed(6),
+    face_indices: g.faces.slice().sort((a, b) => a - b),
+  }));
+}
+
+// build_domain in main.py, mirrored so the box can be redrawn on every
+// keystroke without a round trip. The floor comes off the wheels, not the
+// bodywork: a car sits on its contact patch and its lowest panel is above it.
+function prepDomain() {
+  const p = state.prep, lo = p.info.bbox.min, hi = p.info.bbox.max;
+  const ground = p.wheels.length
+    ? Math.min(...p.wheels.map((w) => w.cz_m - w.radius_m)) - 0.03
+    : lo[2];
+  return {
+    outlet_x: lo[0] - p.off.down, inlet_x: hi[0] + p.off.up,
+    ground_z: ground, top_z: hi[2] + p.off.top,
+    side_y: lo[1] - p.off.side,
+    symmetry_y: p.sym ? 0 : hi[1] + p.off.side,
+    symmetry: p.sym,
+  };
+}
+
+function prepDrawBox() {
+  const p = state.prep;
+  if (!p) return window.hideTunnel();
+  const d = prepDomain(), inv = 1 / p.info.scale_to_m;
+  window.showTunnel({
+    x0: d.outlet_x * inv, x1: d.inlet_x * inv,
+    y0: Math.min(d.side_y, d.symmetry_y) * inv,
+    y1: Math.max(d.side_y, d.symmetry_y) * inv,
+    z0: d.ground_z * inv, z1: d.top_z * inv,
+  });
+  window.setPickedFaces(p.wheels.flatMap((w) => w.face_indices));
+}
+
+const mm = (m) => (m * 1000).toFixed(1);
+
+// The measured shadow, for whichever tunnel is currently set up. Shown live
+// because it is what every force coefficient is divided by.
+function frontalNow() {
+  const p = state.prep;
+  if (!p) return 0;
+  return (p.sym ? p.info.frontal_area_half_m2 : p.info.frontal_area_m2) || 0;
+}
+
+function renderPrep() {
+  const el = $("prepPanel"), p = state.prep;
+  el.classList.toggle("hidden", !p);
+  document.body.classList.toggle("preparing", !!p);
+  document.querySelector(".viewport").classList.toggle("picking", !!p && p.picking);
+  if (!p) return;
+  const lo = p.info.bbox.min, hi = p.info.bbox.max, sz = p.info.bbox.size;
+  const d = prepDomain();
+  // A half car modelled about y = 0 with symmetry off puts a slip wall where
+  // the other half should be and the answer means nothing. The width is the
+  // only thing on screen that reveals it, so it is stated, not buried.
+  const looksHalf = Math.abs(hi[1]) < 1e-4 || Math.abs(lo[1]) < 1e-4;
+  const w = p.wheels;
+
+  el.innerHTML = `
+    <h3>Wind tunnel setup</h3>
+    <div class="note">${esc(p.file.name)}<br>
+      Car ${mm(sz[0])} by ${mm(sz[1])} by ${mm(sz[2])} mm,
+      ${p.info.solid_count} bodies, ${p.info.face_count} faces, read as ${p.info.unit}.<br>
+      Frontal area ${(frontalNow() * 1e4).toFixed(2)} cm&sup2;${p.sym ? ", half the car" : ""}.</div>
+    ${looksHalf && !p.sym ? `<div class="warn">This car sits against y = 0, so it
+      is probably half a car. With symmetry off the tunnel wraps a car with one
+      side missing and the result will not mean anything.</div>` : ""}
+
+    <div class="grp">
+      <div class="row"><label>Symmetry plane at y = 0</label>
+        <input type="checkbox" ${p.sym ? "checked" : ""}
+               onchange="prepSet('sym', this.checked)"></div>
+      <div class="note">Halves the tunnel and the solve time. Only correct for a
+        car modelled as a half, or a whole car mirrored about y = 0.</div>
+    </div>
+
+    <div class="grp">
+      <div class="row"><span class="eyebrow">Tunnel</span>
+        <button class="btn" style="height:22px;padding:0 8px"
+                onclick="window.frameTunnel()">Fit view</button></div>
+      <div class="row"><label>Upstream (m)</label>
+        <input type="number" step="0.05" min="0.05" max="50" value="${p.off.up}"
+               onchange="prepSet('up', this.value)"></div>
+      <div class="row"><label>Downstream (m)</label>
+        <input type="number" step="0.05" min="0.05" max="50" value="${p.off.down}"
+               onchange="prepSet('down', this.value)"></div>
+      <div class="row"><label>Side (m)</label>
+        <input type="number" step="0.05" min="0.01" max="10" value="${p.off.side}"
+               onchange="prepSet('side', this.value)"></div>
+      <div class="row"><label>Above (m)</label>
+        <input type="number" step="0.05" min="0.01" max="10" value="${p.off.top}"
+               onchange="prepSet('top', this.value)"></div>
+      <div class="note">Drag any wall of the box to move it. The floor is fixed
+        30 mm under the lowest wheel, at z = ${mm(d.ground_z)} mm, because the
+        road has to sit under the contact patch.</div>
+    </div>
+
+    <div class="grp">
+      <div class="row"><span class="eyebrow">Wind speed</span>
+        <input type="number" step="0.5" min="1" max="120" value="${p.velocity}"
+               onchange="prepSet('velocity', this.value)"></div>
+      <div class="note">m/s. Each wheel turns at this speed divided by its own
+        radius, so both update together.</div>
+    </div>
+
+    <div class="grp">
+      <div class="row"><span class="eyebrow">Wheels</span>
+        <span class="num muted">${w.length}</span></div>
+      <div class="row"><label>Detect at radius (mm)</label>
+        <input type="number" step="0.5" min="1" max="1000" value="${mm(p.radius)}"
+               onchange="prepSet('radius', this.value / 1000)"></div>
+      <button class="btn" onclick="prepAutoWheels()">Detect wheels again</button>
+      ${w.map((x, i) => `
+        <div class="wheel ${p.activeWheel === i ? "active" : ""}">
+          <div class="row"><b>${esc(x.name)}</b>
+            <button class="btn" style="height:20px;padding:0 6px"
+                    onclick="prepDropWheel(${i})">Remove</button></div>
+          <div class="row"><label>Radius (mm)</label>
+            <input type="number" step="0.1" min="1" value="${mm(x.radius_m)}"
+                   onchange="prepWheelRadius(${i}, this.value / 1000)"></div>
+          <div class="note">${x.face_indices.length} face${x.face_indices.length === 1 ? "" : "s"},
+            centre ${mm(x.cx_m)}, ${mm(x.cy_m)}, ${mm(x.cz_m)} mm.
+            Turns at ${(p.velocity / x.radius_m).toFixed(0)} rad/s.</div>
+          <button class="btn" onclick="prepPickMode(${i})">
+            ${p.activeWheel === i && p.picking ? "Done picking" : "Pick faces"}</button>
+        </div>`).join("")}
+      <button class="btn" onclick="prepAddWheel()">Add a wheel by picking faces</button>
+      ${p.picking ? `<div class="note">Click a face on the car to add or remove
+        it from ${esc(w[p.activeWheel] ? w[p.activeWheel].name : "this wheel")}.
+        A whole face highlights under the pointer before you click. Right-click
+        to grow the selection across a smooth join, or to reach a face hidden
+        behind another. Orbiting still works.</div>` : ""}
+      ${w.length === 0 ? `<div class="warn">No wheels. Every surface will be a
+        fixed wall and the wheels will not turn.</div>` : ""}
+    </div>
+
+    <div class="row" style="margin-top:auto;gap:var(--s2)">
+      <button class="btn" onclick="prepCancel()">Cancel</button>
+      <button class="btn btn-primary" id="prepGo" onclick="prepBuild()"
+              ${p.busy ? "disabled" : ""}>${p.busy || "Build wind tunnel"}</button>
+    </div>`;
+}
+
+function prepSet(key, value) {
+  const p = state.prep;
+  if (!p) return;
+  if (key === "sym") p.sym = !!value;
+  else if (key === "velocity") p.velocity = Math.max(1, Math.min(120, +value || 1));
+  else if (key === "radius") p.radius = Math.max(0.001, Math.min(1, +value || 0.001));
+  else p.off[key] = Math.max(0.01, Math.min(50, +value || 0.01));
+  prepDrawBox(); renderPrep();
+}
+
+function prepAutoWheels() {
+  const p = state.prep;
+  p.wheels = detectWheels(p.info.faces, p.radius, 0.08);
+  p.activeWheel = null; p.picking = false;
+  toast(p.wheels.length ? `Found ${p.wheels.length} wheel${p.wheels.length === 1 ? "" : "s"}.`
+                        : "No cylinders about the Y axis at that radius.");
+  prepDrawBox(); renderPrep();
+}
+
+function prepAddWheel() {
+  const p = state.prep;
+  p.wheels.push({ name: `Wheel_${p.wheels.length + 1}`, radius_m: p.radius,
+                  cx_m: 0, cy_m: 0, cz_m: 0, face_indices: [] });
+  prepPickMode(p.wheels.length - 1);
+}
+
+function prepDropWheel(i) {
+  const p = state.prep;
+  p.wheels.splice(i, 1);
+  if (p.activeWheel === i) { p.activeWheel = null; p.picking = false; }
+  prepDrawBox(); renderPrep();
+}
+
+function prepWheelRadius(i, r) {
+  const p = state.prep;
+  p.wheels[i].radius_m = Math.max(0.001, Math.min(1, +r || 0.001));
+  renderPrep();
+}
+
+function prepPickMode(i) {
+  const p = state.prep;
+  p.picking = !(p.activeWheel === i && p.picking);
+  p.activeWheel = p.picking ? i : null;
+  renderPrep();
+}
+
+// A clicked face joins the wheel, or leaves it if it was already in. The centre
+// and radius are recomputed from whatever faces the wheel now holds, so picking
+// the two halves of a split tyre gives one wheel in the right place.
+// Expand a single clicked face into whatever the current selection mode
+// means. Kept separate from the picking itself so the modes cannot drift
+// apart from the menu commands that do the same job on demand.
+function facesForClick(faceId) {
+  const p = state.prep;
+  const mode = window.selectionMode || "face";
+  if (!p || mode === "face") return [faceId];
+
+  if (mode === "body") {
+    const owner = (p.info.faces[faceId] || {}).solid;
+    if (owner == null || owner < 0) {
+      toast("This model does not say which part that face belongs to.");
+      return [faceId];
+    }
+    return p.info.faces.filter((f) => f.solid === owner).map((f) => f.index);
+  }
+
+  // tangent: the face, and everything reachable from it over smooth edges
+  const seen = new Set([faceId]), stack = [faceId];
+  while (stack.length) {
+    for (const n of (p.info.faces[stack.pop()] || {}).tangent || []) {
+      if (!seen.has(n)) { seen.add(n); stack.push(n); }
+    }
+  }
+  return [...seen];
+}
+
+function prepPickFace(faceId) {
+  const p = state.prep, w = p.wheels[p.activeWheel];
+  if (!w) return;
+  const at = w.face_indices.indexOf(faceId);
+  if (at >= 0) w.face_indices.splice(at, 1);
+  else w.face_indices.push(faceId);
+  w.face_indices.sort((a, b) => a - b);
+  prepRecomputeWheel(w);
+  prepDrawBox(); renderPrep();
+}
+
+// A wheel is whatever faces it holds. Recomputed from them every time, so
+// adding the second half of a split tyre moves the centre to where it belongs
+// rather than leaving it on the first half.
+function prepRecomputeWheel(w) {
+  const p = state.prep;
+  const cyls = w.face_indices.map((i) => p.info.faces[i])
+    .filter((f) => f && f.type === "cylinder" && f.axis);
+  if (cyls.length) {
+    w.radius_m = +Math.max(...cyls.map((f) => f.radius_m)).toFixed(6);
+    w.cx_m = +(cyls.reduce((t, f) => t + f.axis_x_m, 0) / cyls.length).toFixed(6);
+    w.cy_m = +(cyls.reduce((t, f) => t + f.axis_y_m, 0) / cyls.length).toFixed(6);
+    w.cz_m = +(cyls.reduce((t, f) => t + f.axis_z_m, 0) / cyls.length).toFixed(6);
+  } else if (w.face_indices.length) {
+    // Flat or splined faces carry no radius of their own, so the centre is the
+    // best that can be had and the radius stays whatever was typed.
+    const fs = w.face_indices.map((i) => p.info.faces[i]).filter(Boolean);
+    w.cx_m = +(fs.reduce((t, f) => t + f.cx_m, 0) / fs.length).toFixed(6);
+    w.cy_m = +(fs.reduce((t, f) => t + f.cy_m, 0) / fs.length).toFixed(6);
+    w.cz_m = +(fs.reduce((t, f) => t + f.cz_m, 0) / fs.length).toFixed(6);
+  }
+}
+
+// -- growing a selection ------------------------------------------------------
+// SimScale's "expand selection", which exists because a person and a STEP file
+// disagree about what one face is. A tyre drawn as four trimmed cylinders is
+// one thing to click on and four things in the file.
+
+function prepActive() {
+  const p = state.prep;
+  return p && p.activeWheel != null ? p.wheels[p.activeWheel] : null;
+}
+
+// Faces reachable from the current selection over smooth joins. The tangency
+// comes from the geometry service, because only OCC can tell a smooth edge from
+// a sharp one, and most STEP files do not record it.
+function prepExpandTangent() {
+  const p = state.prep, w = prepActive();
+  if (!w) return;
+  const seen = new Set(w.face_indices), stack = [...w.face_indices];
+  while (stack.length) {
+    for (const n of (p.info.faces[stack.pop()] || {}).tangent || []) {
+      if (!seen.has(n)) { seen.add(n); stack.push(n); }
+    }
+  }
+  const added = seen.size - w.face_indices.length;
+  prepSetFaces(w, [...seen]);
+  toast(added ? `Added ${added} tangent face${added === 1 ? "" : "s"}.`
+              : "Nothing joins this smoothly. It is already one whole face.");
+}
+
+// Split a pile of faces into wheels by where they sit. Same rule as detection:
+// two faces belong to one wheel only if they are within half a radius of each
+// other across the car.
+function prepGroupFaces(ids) {
+  const p = state.prep, groups = [];
+  for (const i of ids) {
+    const f = p.info.faces[i];
+    if (!f) continue;
+    const x = f.axis_x_m != null ? f.axis_x_m : f.cx_m;
+    const z = f.axis_z_m != null ? f.axis_z_m : f.cz_m;
+    const near = (f.radius_m || 0.02) * 0.5;
+    let g = groups.find((q) => Math.abs(q.x - x) < near && Math.abs(q.z - z) < near);
+    if (!g) { g = { x, z, faces: [] }; groups.push(g); }
+    g.faces.push(i);
+  }
+  return groups.map((g) => g.faces.sort((a, b) => a - b));
+}
+
+// Faces the same size as the ones already chosen, which on a car is how you get
+// the other wheels once you have one.
+//
+// They become separate wheels, not more faces of this one. Every wheel turns
+// about its own centre, and pouring both wheels into one entity puts that
+// centre midway between them, on a wheel that does not exist. That is the
+// difference between this and SimScale's version of the same command: there a
+// face set is a face set, here each set has to be one physical wheel.
+function prepExpandSameArea() {
+  const p = state.prep, w = prepActive();
+  if (!w || !w.face_indices.length) return;
+  const want = w.face_indices.map((i) => p.info.faces[i].area_m2);
+  const all = new Set(w.face_indices);
+  for (const f of p.info.faces) {
+    if (all.has(f.index)) continue;
+    // Within a percent. Equal faces in a CAD model are equal to the last
+    // decimal, so this is only loose enough to survive the export.
+    if (want.some((a) => a > 0 && Math.abs(f.area_m2 - a) / a < 0.01)) all.add(f.index);
+  }
+  if (all.size === w.face_indices.length) return toast("No other face is that size.");
+
+  const groups = prepGroupFaces([...all]);
+  const mine = groups.find((g) => g.some((i) => w.face_indices.includes(i))) || groups[0];
+  const others = groups.filter((g) => g !== mine);
+  prepSetFaces(w, mine);
+  for (const g of others) {
+    const extra = { name: `Wheel_${p.wheels.length + 1}`, radius_m: p.radius,
+                    cx_m: 0, cy_m: 0, cz_m: 0, face_indices: g };
+    p.wheels.push(extra);
+    prepRecomputeWheel(extra);
+  }
+  prepDrawBox(); renderPrep();
+  toast(others.length
+    ? `Found ${others.length} more wheel${others.length === 1 ? "" : "s"} the same size.`
+    : `Added ${mine.length - 1} more face${mine.length === 2 ? "" : "s"} to this wheel.`);
+}
+
+function prepSetFaces(w, ids) {
+  w.face_indices = [...new Set(ids)].sort((a, b) => a - b);
+  prepRecomputeWheel(w);
+  prepDrawBox(); renderPrep();
+}
+
+// -- the right-click menu -----------------------------------------------------
+let faceMenuAt = null;
+
+function prepFaceMenu(ev) {
+  const p = state.prep;
+  const el = $("faceMenu");
+  if (!p || !p.picking) return prepCloseMenu();
+  const under = window.facesUnderPointer(ev.clientX, ev.clientY);
+  const w = prepActive();
+  if (!w) return prepCloseMenu();
+  faceMenuAt = under;
+
+  const vp = document.querySelector(".viewport").getBoundingClientRect();
+  el.innerHTML = `
+    <span class="eyebrow">Expand selection</span>
+    <button onclick="prepMenuAct('tangent')" ${w.face_indices.length ? "" : "disabled"}>
+      Tangent faces</button>
+    <button onclick="prepMenuAct('area')" ${w.face_indices.length ? "" : "disabled"}>
+      Faces of the same size</button>
+    <hr>
+    <span class="eyebrow">Select other</span>
+    ${under.length ? under.map((id) => `
+      <button onclick="prepMenuAct('face', ${id})">
+        ${w.face_indices.includes(id) ? "Remove" : "Add"} face ${id}
+        (${esc(p.info.faces[id] ? p.info.faces[id].type : "?")})</button>`).join("")
+      : `<button disabled>Nothing under the pointer</button>`}
+    <hr>
+    <button onclick="prepMenuAct('clear')" ${w.face_indices.length ? "" : "disabled"}>
+      Clear this wheel</button>`;
+  el.classList.remove("hidden");
+  // Kept inside the viewport, so a right-click near the bottom edge does not
+  // open a menu that runs off the screen.
+  const mx = Math.min(ev.clientX - vp.left, vp.width - el.offsetWidth - 8);
+  const my = Math.min(ev.clientY - vp.top, vp.height - el.offsetHeight - 8);
+  el.style.left = Math.max(0, mx) + "px";
+  el.style.top = Math.max(0, my) + "px";
+}
+
+function prepCloseMenu() {
+  $("faceMenu").classList.add("hidden");
+  faceMenuAt = null;
+}
+
+function prepMenuAct(what, id) {
+  const w = prepActive();
+  prepCloseMenu();
+  if (!w) return;
+  if (what === "tangent") prepExpandTangent();
+  else if (what === "area") prepExpandSameArea();
+  else if (what === "clear") prepSetFaces(w, []);
+  else if (what === "face") prepPickFace(id);
+}
+
+// Dragging a wall turns straight back into the offset that produced it, so the
+// panel and the box are always the same numbers. The floor is not draggable: it
+// is fixed under the wheels and moving it would put the road through them.
+function prepWallMoved(key, valueModelUnits) {
+  const p = state.prep, m = valueModelUnits * p.info.scale_to_m;
+  const lo = p.info.bbox.min, hi = p.info.bbox.max;
+  // To the millimetre. A drag lands on an arbitrary float, and a tunnel quoted
+  // as 1.48626 m reads like a measurement rather than a choice.
+  const set = (lowest, v) => Math.round(Math.max(lowest, v) * 1000) / 1000;
+  if (key === "x1") p.off.up = set(0.05, m - hi[0]);
+  else if (key === "x0") p.off.down = set(0.05, lo[0] - m);
+  else if (key === "z1") p.off.top = set(0.01, m - hi[2]);
+  else if (key === "y0") p.off.side = set(0.01, lo[1] - m);
+  else if (key === "y1" && !p.sym) p.off.side = set(0.01, m - hi[1]);
+  else return false;
+  prepDrawBox();
+  return true;
+}
+
+function prepCancel() {
+  const p = state.prep;
+  state.prep = null;
+  window.hideTunnel();
+  window.setPickedFaces([]);
+  renderPrep();
+  // The raw upload is the user's file and nothing else points at it, so it goes
+  // with the dialog rather than sitting in a bucket nobody will ever clean.
+  if (p && !p.built) sb.storage.from("cfd-files").remove([`${p.base}/raw.step`]).catch(() => {});
+  showModel();
+}
+
+async function startPrepare() {
+  const btn = $("autoBtn");
+  try {
+    const step = await pick($("stepInput"));
+    if (!step) return;
+    btn.disabled = true; btn.textContent = "Uploading...";
+
+    const gid = crypto.randomUUID();
+    const base = `users/${me.id}/geometries/${gid}`;
+    const up = await sb.storage.from("cfd-files").upload(`${base}/raw.step`, step, { upsert: false });
+    if (up.error) throw up.error;
+
+    btn.textContent = "Reading the car...";
+    const info = await svc("/inspect", { step_path: `${base}/raw.step`, wheel_radius_m: 0.014125 });
+
+    state.prep = {
+      gid, base, file: step, info,
+      sym: true, off: { up: 1.5, down: 0.5, side: 0.3, top: 0.3 },
+      radius: 0.014125, velocity: 20,
+      wheels: (info.wheels || []).map((w) => ({ ...w })),
+      activeWheel: null, picking: false, busy: null, built: false,
+    };
+    await window.renderGlb(await signed(info.glb_path));
+    prepDrawBox();
+    window.frameTunnel();
+    renderPrep();
+  } catch (e) {
+    toast(e.message || String(e), 8000);
+  } finally {
+    btn.disabled = false; btn.textContent = "Automatic CFD";
+  }
+}
+
+// Build the flow region, then create the rows. Nothing is charged until the job
+// row goes in, so a tunnel that comes back wrong costs nothing and can be
+// adjusted and rebuilt.
+async function prepBuild() {
+  const p = state.prep;
+  if (!p) return;
+  if (!p.wheels.length) {
+    const go = await ask({
+      title: "No wheels marked",
+      body: "Every surface on the car will be a fixed wall. Real wheels turn, "
+          + "and a stationary wheel changes the wake and the drag.\n\n"
+          + "Pick the wheel faces, or run it this way on purpose.",
+      ok: "Run without turning wheels",
+    });
+    if (!go) return;
+  }
+  p.busy = "Building..."; renderPrep();
+  let out;
+  try {
+    out = await svc("/prepare", {
+      step_path: `${p.base}/raw.step`, dest_prefix: p.base,
+      upstream_m: p.off.up, downstream_m: p.off.down,
+      side_m: p.off.side, top_m: p.off.top, symmetry: p.sym,
+      wheel_radius_m: p.radius,
+      wheels: p.wheels.length ? p.wheels.map((w) => ({
+        name: w.name, radius_m: w.radius_m,
+        cx_m: w.cx_m, cy_m: w.cy_m, cz_m: w.cz_m, face_indices: w.face_indices,
+      })) : undefined,
+    });
+  } catch (e) {
+    p.busy = null; renderPrep();
+    return toast(e.message || String(e), 12000);
+  }
+
+  // What the run will actually solve, before it is paid for. A tunnel with no
+  // inlet finishes cleanly and means nothing, and the counts are the only place
+  // that shows up.
+  const c = out.label_counts || {};
+  const lines = Object.keys(c).sort().map((k) => `${k}: ${c[k]}`).join("\n");
+  const go = await ask({
+    title: "Wind tunnel built",
+    body: `${out.face_count} faces on the flow region:\n\n${lines}\n\n`
+        + (out.missing_labels && out.missing_labels.length
+            ? `Missing: ${out.missing_labels.join(", ")}. This run would not mean anything.\n\n`
+            : "")
+        + (out.demoted_wheel_faces
+            ? `${out.demoted_wheel_faces} wheel faces had no usable radius and are plain walls.\n\n`
+            : "")
+        + "Queueing the run charges credits.",
+    ok: "Queue the run",
+  });
+  if (!go) { p.busy = null; renderPrep(); return; }
+
+  p.busy = "Queueing..."; renderPrep();
+  try {
+    const stamp = new Date().toLocaleString();
+    const { data: proj, error: pe } = await sb.from("projects")
+      .insert({ user_id: me.id, name: p.file.name.replace(/\.(step|stp)$/i, "") || "Wind tunnel" })
+      .select().single();
+    if (pe) throw pe;
+
+    const { data: geom, error: ge } = await sb.from("geometries").insert({
+      id: p.gid, project_id: proj.id, user_id: me.id, name: p.file.name,
+      size_bytes: p.file.size, step_path: out.step_path, label_path: out.label_path,
+      glb_path: out.glb_path, face_count: out.face_count,
+      solid_count: out.solid_count, triangle_count: out.triangle_count,
+      wheel_count: p.wheels.length,
+      // The shadow the car casts into this tunnel. Force coefficients divide by
+      // it, and before this it was a bounding box times a factor nobody could
+      // defend, so every Cd the Workbench has ever shown was a guess.
+      frontal_area_m2: out.frontal_area_m2, bbox: out.bbox,
+      // Which route built this. A Fusion upload and a tunnel built here are not
+      // interchangeable, and without the flag nothing downstream can tell.
+      prepared_by: "workbench", source_step_path: `${p.base}/raw.step`,
+    }).select().single();
+    if (ge) throw ge;
+
+    const { data: sim, error: se } = await sb.from("simulations").insert({
+      project_id: proj.id, geometry_id: geom.id, user_id: me.id,
+      name: `Wind tunnel, ${stamp}`, inlet_velocity: p.velocity,
+    }).select().single();
+    if (se) throw se;
+
+    const { error: je } = await sb.from("jobs").insert({
+      id: crypto.randomUUID(), user_id: me.id, project_id: proj.id,
+      simulation_ref: sim.id, status: "pending", file_name: p.file.name,
+      step_path: geom.step_path, label_path: geom.label_path,
+      iteration_count: sim.iteration_count, refine_level: sim.refine_level,
+      inlet_velocity: sim.inlet_velocity, debug_mesh: sim.debug_mesh,
+      setup_snapshot: setupOf(sim),
+      frontal_area_m2: out.frontal_area_m2 ?? null,
+      reference_length_m: p.info.bbox.size[0],
+    });
+    if (je) throw je;
+
+    p.built = true;
+    state.selSim = sim.id;
+    state.prep = null;
+    window.hideTunnel();
+    renderPrep();
+    toast("Run queued, status updates here live.");
+    await refresh();
+  } catch (e) {
+    p.busy = null; renderPrep();
+    toast(e.message || String(e), 8000);
+  }
+}
+
+async function autoCfd() {
+  const btn = $("autoBtn");
+  const uploaded = [];
+  // Once the job row exists, on-new-job has charged credits and queued the
+  // worker against the uploaded paths: so a later throw must NOT delete them.
+  // Cleanup is for the pre-commit window only; after it, a failed refresh() is
+  // cosmetic and the paid run still needs its geometry.
+  let committed = false;
+  try {
+    const step = await pick($("stepInput"));
+    if (!step) return;
+
+    // The labels CSV. Asked for BEFORE anything is uploaded, because automatic
+    // labelling does not currently work (FINDINGS.md 11 , /infer_labels cannot
+    // recover STEP entity ids) and without it the run has no boundary
+    // conditions at all. Uploading two megabytes first, calling an endpoint we
+    // know will refuse, and then deleting the upload is a slower way of
+    // arriving at the same place.
+    const labels = await pick($("labelInput"));
+    if (!labels) {
+      const go = await ask({
+        title: "No entity_labels.csv chosen",
+        body: "That file says which faces are the inlet, outlet, ground and car. "
+          + "Without it the run has no boundary conditions.\n\n"
+          + "The service can try to derive it from the STEP, but that currently "
+          + "fails on most files (FINDINGS.md 11). If it does, nothing is "
+          + "uploaded or charged and you will be asked for the CSV again.\n\n"
+          + "The Fusion 360 plugin exports it alongside the STEP.",
+        ok: "Try anyway",
+      });
+      if (!go) return;
+    }
+
+    btn.disabled = true; btn.textContent = "Uploading…";
+    const jobId = crypto.randomUUID();
+    // Geometry is keyed by the GEOMETRY, not by the first run that used it. A
+    // simulation can be run repeatedly against one upload, and the worker
+    // deletes its own job folder when it finishes , parking the STEP under a
+    // job id meant run 2 downloaded a file run 1 had already cleaned up.
+    // RLS only requires the jobs/<uid>/ prefix, so the second segment is ours.
+    const geomId = crypto.randomUUID();
+    const base = `users/${me.id}/geometries/${geomId}`;  // the uid in the path IS the
+                                                     // ownership check (storage.rules)
+
+    let up = await sb.storage.from("cfd-files").upload(`${base}/geometry.step`, step, { upsert: false });
+    if (up.error) throw up.error;
+    uploaded.push(`${base}/geometry.step`);
+    if (labels) {
+      up = await sb.storage.from("cfd-files").upload(`${base}/entity_labels.csv`, labels, { upsert: false });
+      if (up.error) throw up.error;
+      uploaded.push(`${base}/entity_labels.csv`);
+    }
+
+    // Best-effort labelling, attempted only after the user opted in above. It
+    // usually fails today (FINDINGS.md 11), so the point of running it here —
+    // before the job row exists — is that the failure costs nothing: on-new-job
+    // charges at insert time, so a run that cannot work must never reach it.
+    let labelPath = labels ? `${base}/entity_labels.csv` : null;
+    if (!labels) {
+      btn.textContent = "Labelling faces…";
+      labelPath = await inferLabels(`${base}/geometry.step`, `${base}/entity_labels.csv`);
+      if (!labelPath) {
+        await sb.storage.from("cfd-files").remove(uploaded);
+        return;                      // toast already explains why
+      }
+      uploaded.push(labelPath);
+    }
+
+    btn.textContent = "Setting up…";
+    const stamp = new Date().toLocaleString();
+    const { data: proj, error: pe } = await sb.from("projects")
+      .insert({ user_id: me.id, name: step.name.replace(/\.(step|stp)$/i, "") || "Automatic CFD" })
+      .select().single();
+    if (pe) throw pe;
+
+    const { data: geom, error: ge } = await sb.from("geometries").insert({
+      id: geomId, project_id: proj.id, user_id: me.id, name: step.name, size_bytes: step.size,
+      step_path: `${base}/geometry.step`, label_path: labelPath,
+    }).select().single();
+    if (ge) throw ge;
+
+    const { data: sim, error: se } = await sb.from("simulations").insert({
+      project_id: proj.id, geometry_id: geom.id, user_id: me.id,
+      name: `Automatic CFD, ${stamp}`,
+    }).select().single();
+    if (se) throw se;
+
+    // status 'pending' is what on-new-job acts on: it re-clamps every value
+    // server-side, charges credits, and starts the Cloud Run worker.
+    const { error: je } = await sb.from("jobs").insert({
+      id: jobId, user_id: me.id, project_id: proj.id, simulation_ref: sim.id,
+      status: "pending", file_name: step.name,
+      step_path: geom.step_path, label_path: geom.label_path,
+      iteration_count: sim.iteration_count, refine_level: sim.refine_level,
+      inlet_velocity: sim.inlet_velocity, debug_mesh: sim.debug_mesh,
+      // The first run of a simulation needs its snapshot as much as any later
+      // one — leaving it null here is what makes a later setup edit silently
+      // relabel the very first result in the project.
+      setup_snapshot: setupOf(sim),
+    });
+    if (je) throw je;
+    committed = true;   // point of no return: charged and queued
+
+    state.selSim = sim.id; state.selJob = jobId;
+    toast("Run queued, status updates here live.");
+    await refresh();
+    btn.textContent = "Tessellating…";
+    await tessellate(geom.id, geom.step_path);   // 3D preview, best effort
+  } catch (e) {
+    toast(e.message || String(e), 8000);
+    // Do not leave the upload orphaned: nothing else will ever clean it up, and
+    // the free tier is 1 GB. But never delete a committed job's geometry — the
+    // worker is already queued to download exactly these paths.
+    if (uploaded.length && !committed) await sb.storage.from("cfd-files").remove(uploaded);
+  } finally {
+    btn.disabled = false; btn.textContent = "Automatic CFD";
+  }
+}
+
+// Inspect clicks land on the viewport, not the canvas, so a pin's own label can
+// sit above the canvas and still be clickable to remove it.
+viewerReady.then(() => {
+  const vp = document.querySelector(".viewport");
+
+  // Dragging a tunnel wall. Taken on pointerdown so the orbit controls can be
+  // switched off before they see the same drag and spin the camera instead.
+  let dragged = false;
+  vp.addEventListener("pointerdown", (ev) => {
+    if (!state.prep || ev.button !== 0 || ev.target.closest(".prep")) return;
+    if (!window.startTunnelDrag(ev.clientX, ev.clientY)) return;
+    dragged = false;
+    vp.setPointerCapture?.(ev.pointerId);
+    vp.classList.add("walldrag");
+  });
+  vp.addEventListener("pointermove", (ev) => {
+    if (!state.prep) return;
+    const moved = window.moveTunnelDrag(ev.clientX, ev.clientY);
+    if (!moved) return;
+    dragged = true;
+    // Redrawing from the offset rather than from the wall position is what
+    // keeps the panel honest: the box is always what the numbers say.
+    if (prepWallMoved(moved.key, moved.value)) renderPrep();
+  });
+  const endDrag = (ev) => {
+    if (!state.prep) return;
+    window.endTunnelDrag();
+    vp.releasePointerCapture?.(ev.pointerId);
+    vp.classList.remove("walldrag");
+  };
+  vp.addEventListener("pointerup", endDrag);
+  vp.addEventListener("pointercancel", endDrag);
+
+  // Highlight the whole face under the pointer before it is clicked. Without
+  // it there is no way to tell what a click is about to select, and a triangle
+  // and a face look identical until one of them lights up.
+  let hoverQueued = false, hoverAt = null, hovered = -1;
+  vp.addEventListener("pointermove", (ev) => {
+    if (!state.prep || !state.prep.picking) {
+      if (hovered !== -1) { hovered = window.selectFace(-1); }
+      return;
+    }
+    hoverAt = [ev.clientX, ev.clientY];
+    if (hoverQueued) return;
+    hoverQueued = true;
+    requestAnimationFrame(() => {
+      hoverQueued = false;
+      const hit = window.inspectAt(hoverAt[0], hoverAt[1]);
+      const id = hit && hit.faceId != null ? hit.faceId : -1;
+      if (id !== hovered) hovered = window.selectFace(id);
+    });
+  });
+
+  vp.addEventListener("contextmenu", (ev) => {
+    if (!state.prep || !state.prep.picking || ev.target.closest(".prep")) return;
+    ev.preventDefault();
+    prepFaceMenu(ev);
+  });
+  vp.addEventListener("pointerdown", (ev) => {
+    if (!ev.target.closest(".facemenu")) prepCloseMenu();
+  });
+
+  vp.addEventListener("click", (ev) => {
+    if (ev.target.closest(".pin")) return;      // removing a pin, not adding one
+    if (ev.target.closest(".prep")) return;     // a control, not the model
+    // Picking wheel faces. A click that was really the end of an orbit or a
+    // wall drag must not also select a face.
+    if (state.prep) {
+      if (dragged) { dragged = false; return; }
+      if (!state.prep.picking) return;
+      const hit = window.inspectAt(ev.clientX, ev.clientY);
+      if (!hit || hit.faceId == null) return toast("No face there. Click on the car.");
+      // What one click means, per the Controls panel. Face is one face; body
+      // is every face of the part, which is what someone means when they
+      // point at a wheel; tangent grows across smooth joins.
+      const ids = facesForClick(hit.faceId);
+      ids.forEach(prepPickFace);
+      return;
+    }
+    addPin(ev);
+  });
+  window.onCameraChange(drawPins);
+  addEventListener("resize", drawPins);
+});
+
+// ── stale-build detection ────────────────────────────────────────────────────
+// A browser tab left open does not know the file behind it has changed, and
+// nothing about the page tells you which build you are looking at. That cost
+// real time during development: work was reviewed against a tab hours out of
+// date, repeatedly, with no way to tell from the screen.
+//
+// So the page asks. It records the Last-Modified it was served with, re-checks
+// periodically, and shows a chip when the server has something newer. It never
+// reloads on its own — losing a half-filled setup panel to a background refresh
+// would be a worse bug than the one this solves.
+(function watchForNewBuild() {
+  const url = location.pathname;
+  let loadedVersion = null;
+
+  const version = async () => {
+    try {
+      const r = await fetch(url, { method: "HEAD", cache: "no-store" });
+      return r.headers.get("last-modified") || r.headers.get("etag");
+    } catch (e) {
+      return null;                      // offline or server down: say nothing
+    }
+  };
+
+  version().then((v) => {
+    loadedVersion = v;
+    if (!v) return;                     // no usable header, so no claim to make
+    setInterval(async () => {
+      const now = await version();
+      if (now && now !== loadedVersion) $("stale").classList.remove("hidden");
+    }, 20000);
+  });
+})();
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") return location.reload();
+  boot();
+});
+boot();
+</script>
+</body>
+</html>

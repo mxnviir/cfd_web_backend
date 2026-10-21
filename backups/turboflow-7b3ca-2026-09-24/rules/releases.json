@@ -1,0 +1,14 @@
+[
+ {
+  "name": "projects/turboflow-7b3ca/releases/cloud.firestore",
+  "rulesetName": "projects/turboflow-7b3ca/rulesets/7008f62b-e46d-4871-a4dd-68c6b0f2d4cf",
+  "createTime": "2026-02-18T14:38:45.410314Z",
+  "updateTime": "2026-07-30T20:28:43.297285Z"
+ },
+ {
+  "name": "projects/turboflow-7b3ca/releases/firebase.storage/turboflow-7b3ca.firebasestorage.app",
+  "rulesetName": "projects/turboflow-7b3ca/rulesets/d7c4c127-1088-479f-8f70-76bfff912dde",
+  "createTime": "2026-02-26T07:01:06.705833Z",
+  "updateTime": "2026-07-30T20:18:34.900644Z"
+ }
+]

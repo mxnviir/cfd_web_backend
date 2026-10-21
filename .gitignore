@@ -1,0 +1,9 @@
+# Env files hold secrets
+.env
+.env.*
+
+# Archives that bundle .env files
+backups/**/source.zip
+
+# Nested repo: its files are committed, its git metadata is not
+turboflow/.git/

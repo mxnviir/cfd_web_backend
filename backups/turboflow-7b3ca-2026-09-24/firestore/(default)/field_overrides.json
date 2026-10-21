@@ -1,0 +1,39 @@
+[
+ {
+  "name": "projects/turboflow-7b3ca/databases/(default)/collectionGroups/__default__/fields/*",
+  "indexConfig": {
+   "indexes": [
+    {
+     "queryScope": "COLLECTION",
+     "fields": [
+      {
+       "fieldPath": "*",
+       "order": "ASCENDING"
+      }
+     ],
+     "state": "READY"
+    },
+    {
+     "queryScope": "COLLECTION",
+     "fields": [
+      {
+       "fieldPath": "*",
+       "order": "DESCENDING"
+      }
+     ],
+     "state": "READY"
+    },
+    {
+     "queryScope": "COLLECTION",
+     "fields": [
+      {
+       "fieldPath": "*",
+       "arrayConfig": "CONTAINS"
+      }
+     ],
+     "state": "READY"
+    }
+   ]
+  }
+ }
+]

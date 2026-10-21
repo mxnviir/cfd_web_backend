@@ -1,0 +1,46 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+functions/.env
+functions/.env.*
+*-firebase-adminsdk-*.json
+*serviceAccount*.json
+
+# Dependencies
+node_modules/
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firebase-debug.*.log*
+firestore-debug.log*
+ui-debug.log*
+*.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled functions output — rebuilt by the predeploy hook
+functions/lib/
+
+# Vite build output — rebuilt by the hosting predeploy hook
+dist/
+dist-prod/
+firebase.prod.json
+
+# Local screenshots, not part of the app
+.screenshots/
+
+# Security scan output. It quotes the findings verbatim, which means it
+# quotes any secret it found, so it must never be committed.
+.vibemole/

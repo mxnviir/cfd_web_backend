@@ -1,0 +1,22 @@
+[
+ {
+  "name": "projects/turboflow-7b3ca/databases/(default)/collectionGroups/jobs/indexes/CICAgOjXh4EK",
+  "queryScope": "COLLECTION",
+  "fields": [
+   {
+    "fieldPath": "userId",
+    "order": "ASCENDING"
+   },
+   {
+    "fieldPath": "createdAt",
+    "order": "DESCENDING"
+   },
+   {
+    "fieldPath": "__name__",
+    "order": "DESCENDING"
+   }
+  ],
+  "state": "READY",
+  "density": "SPARSE_ALL"
+ }
+]

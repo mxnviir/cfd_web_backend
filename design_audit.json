@@ -1,0 +1,62 @@
+[
+ {
+  "rule": "1.10 / launch gate",
+  "detail": "Tailwind utility classes in use (120 distinct)",
+  "count": 500,
+  "where": "src/views, src/Shell.jsx, *.html"
+ },
+ {
+  "rule": "1.10",
+  "detail": "tailwind.config.js present",
+  "count": 1,
+  "where": "tailwind.config.js"
+ },
+ {
+  "rule": "1.4",
+  "detail": "banned typeface: Inter",
+  "count": 24,
+  "where": "styles.css, page <head>"
+ },
+ {
+  "rule": "1.2",
+  "detail": "dot grid background",
+  "count": 2,
+  "where": "styles.css, workbench.html"
+ },
+ {
+  "rule": "1.2",
+  "detail": "backdrop blur / glassmorphism",
+  "count": 3,
+  "where": "styles.css, workbench.html"
+ },
+ {
+  "rule": "1.2 / 3.4",
+  "detail": "multiple corner radii: [1, 2, 3, 4, 5, 6, 8, 16, 20]",
+  "count": 9,
+  "where": "styles.css, workbench.html"
+ },
+ {
+  "rule": "1.2",
+  "detail": "box-shadow declarations (allowed only on floating things)",
+  "count": 14,
+  "where": "styles.css, workbench.html"
+ },
+ {
+  "rule": "1.1",
+  "detail": "linear-gradient declarations",
+  "count": 12,
+  "where": "styles.css, workbench.html"
+ },
+ {
+  "rule": "1.7",
+  "detail": "em dashes outside comments",
+  "count": 9,
+  "where": "copy"
+ },
+ {
+  "rule": "launch gate",
+  "detail": "missing favicon variant: icon.svg",
+  "count": 1,
+  "where": "*.html"
+ }
+]
