@@ -1,4 +1,0 @@
-image turboflow-tessellate
-build 06502b2e-89ff-40ec-bdbe-c0a66d597e4c
-built 2026-08-14T13:28
-source gs://turboflow-7b3ca_cloudbuild/source/1786714111.645495-2227753f2bc84294a0d388ef39bcdb51.tgz

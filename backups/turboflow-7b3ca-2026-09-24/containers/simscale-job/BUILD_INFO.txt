@@ -1,4 +1,0 @@
-image simscale-job
-build 87101265-e178-4163-8e72-110782afe408
-built 2026-07-30T21:15
-source gs://turboflow-7b3ca_cloudbuild/source/1785446113.410663-35801d1993a143ce8b94a25e8bbebd9e.tgz

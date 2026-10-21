@@ -1,5 +1,0 @@
-cadquery==2.5.2
-trimesh==4.5.3
-flask==3.1.0
-gunicorn==23.0.0
-requests==2.32.3

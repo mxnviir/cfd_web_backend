@@ -1,5 +1,0 @@
-git+https://github.com/SimScaleGmbH/simscale-python-sdk.git
-firebase-admin
-requests
-google-cloud-firestore
-google-cloud-storage
