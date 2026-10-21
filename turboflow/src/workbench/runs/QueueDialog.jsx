@@ -78,7 +78,7 @@ export default function QueueDialog({
         {poor ? (
           <>
             {" "}
-            <a className="wb-link" href="/billing">Add credits</a> before queueing.
+            <a className="wb-link" href="/#billing">Add credits</a> before queueing.
           </>
         ) : null}
       </p>

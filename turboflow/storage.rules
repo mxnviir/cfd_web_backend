@@ -60,17 +60,16 @@ service firebase.storage {
       // step; the service writes everything else with admin credentials and
       // never passes through here at all.
       //
-      // 60 MB, not 200. The geometry service refuses anything over 50 MB
-      // (MAX_STEP_BYTES), so a 199 MB upload could only ever be accepted here
-      // and then rejected there, after the user had waited for all of it.
+      // 60 MB, not 200. The import refuses anything over 50 MB
+      // (MAX_BYTES), so a 199 MB upload could only ever be accepted here and
+      // then rejected there, after the user had waited for all of it.
       allow create: if signedIn()
         && request.auth.uid == uid
         && resource == null
-        // Build spec 13.4: the three CAD formats the geometry service reads.
+        // STEP only: the browser's geometry engine is the reader now.
         // Everything under v{n}/ and results/ is written by services with
         // admin credentials and never appears here.
-        && fileName in ['raw.step', 'raw.stp', 'raw.iges', 'raw.igs', 'raw.stl',
-                        'geometry.step', 'entity_labels.csv']
+        && fileName in ['raw.step', 'raw.stp', 'geometry.step', 'entity_labels.csv']
         && underLimit(60);
 
       // Write-once, enforced by `resource == null` on create above and not by
@@ -94,6 +93,31 @@ service firebase.storage {
         && request.auth.uid == uid
         && versionDir.matches('v[0-9]+');
       allow write, list: if false;
+    }
+
+    // ── a browser-built tunnel, before the backend has ingested it ────────
+    // Reserved by createArtifactIntent, uploaded once by the page, then
+    // verified and copied to the version folder by ingestPreparedDomain. The
+    // token is 32 random bytes minted by the backend, so a path cannot be
+    // claimed in advance or guessed; write-once, like every other upload.
+    match /users/{uid}/geometries/{geometryId}/incoming/{token}/{fileName} {
+      // get, not read: read would include list, and the deny below would
+      // then be dead. Nothing needs to enumerate staging - the page knows the
+      // five exact paths - so it stays closed.
+      allow get, delete: if signedIn() && request.auth.uid == uid;
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && resource == null
+        && token.matches('^[a-zA-Z0-9_-]{8,64}$')
+        // The same files the geometry service used to write to a version
+        // folder: the tunnel's five, and the import's model.glb and thumb.
+        // Nothing else belongs in staging.
+        && fileName in ['geometry.step', 'entity_labels.csv', 'geometry.glb',
+                        'model.glb', 'faces.json', 'solids.json', 'thumb.png']
+        && underLimit(200);
+      allow update: if false;
+      allow list: if false;
     }
 
     // ── the path installed Fusion add-ins upload to ───────────────────────

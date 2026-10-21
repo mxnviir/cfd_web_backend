@@ -1265,6 +1265,9 @@ body.wb-dragging .wb-canvas { pointer-events: none; }
   padding: 4px 0;
 }
 .su-go { width: 100%; justify-content: center; height: 34px; margin-top: 12px; font-weight: 600; }
+/* The temporary flow-region export at the foot of the mesh step. */
+.su-export { display: grid; gap: 8px; margin-top: 12px; border-top: 1px solid var(--wb-rule); padding-top: 10px; }
+.su-export-btn { justify-content: center; height: 32px; }
 
 .su-foot { padding: 12px 14px; }
 

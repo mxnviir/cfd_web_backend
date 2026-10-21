@@ -64,16 +64,24 @@ export const RATE = {
   // on. It writes one small document and re-runs the checker, so the real
   // limit is Firestore's own write rate.
   saveSimulation: { limit: 600, windowS: 3600 },
-  // Measuring is something a user does over and over while reading a
-  // model, so this is loose. It is still a limit, because every call
-  // opens a STEP on the geometry service.
-  measureGeometry: { limit: 300, windowS: 3600 },
-  // Building a wind tunnel is the most expensive thing a signed-in user can
-  // ask for without paying: a boolean cut against a whole car, a STEP export
-  // and a full tessellation, minutes of a Cloud Run container each time. Tight
-  // on purpose. Nobody prepares the same car twenty times in an hour on
-  // purpose, and a loop that does is the thing this is for.
-  prepareDomain: { limit: 20, windowS: 3600 },
+  // Importing and building run in the caller's own browser now, so these
+  // guard documents and bucket writes rather than containers - but the shape
+  // is the same as before: one intent out, one ingest back, per attempt. A
+  // quick retry is expected (a bad file comes back in seconds and the user
+  // fixes it and goes again), so two a minute; a loop of them is still what
+  // this is for.
+  createCarIntent: { limit: 2, windowS: 60 },
+  ingestCar: { limit: 2, windowS: 60 },
+  failCarImport: { limit: 5, windowS: 60 },
+  // The browser cut path: one intent out, one ingest back, per build. A
+  // quick retry is expected - a car-fault comes back in seconds and the user
+  // fixes a number and goes again - so two a minute rather than prepareDomain's
+  // twenty an hour. A loop of them is still what this is for.
+  createArtifactIntent: { limit: 2, windowS: 60 },
+  ingestPreparedDomain: { limit: 2, windowS: 60 },
+  // The page calls this whenever a build goes wrong after the intent was
+  // minted, including for failures that were nothing to do with the backend.
+  failDomainBuild: { limit: 5, windowS: 60 },
   // Keyed by IP, not by user: exchangeFusionToken is how the add-in gets a
   // session in the first place, so there is nobody to charge it to. It was
   // public and unlimited, and every call did a Firestore read before anything

@@ -34,6 +34,10 @@
       {
         "source": "/workbench/**",
         "destination": "/workbench.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
       }
     ],
     "headers": [

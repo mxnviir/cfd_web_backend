@@ -64,8 +64,13 @@ export function ownerOf(path: string): string | null {
  * rather than stopping an abuse.
  */
 export function clientWritable(path: string): boolean {
-  return /^users\/[^/]+\/geometries\/[^/]+\/(raw\.(step|stp|iges|igs|stl)|geometry\.step|entity_labels\.csv)$/i
-    .test(path ?? "");
+  // The browser cut's staging folder is client-written too: uploaded by the
+  // page, moved to the version folder by ingestPreparedDomain, and removable
+  // if it never gets there - so it is swept like any other upload rather
+  // than squatting on the allowance.
+  const uploaded = /^users\/[^/]+\/geometries\/[^/]+\/(raw\.(step|stp)|geometry\.step|entity_labels\.csv)$/i;
+  const incoming = /^users\/[^/]+\/geometries\/[^/]+\/incoming\/[^/]+\/(geometry\.step|entity_labels\.csv|geometry\.glb|model\.glb|faces\.json|solids\.json|thumb\.png)$/i;
+  return uploaded.test(path ?? "") || incoming.test(path ?? "");
 }
 
 /**

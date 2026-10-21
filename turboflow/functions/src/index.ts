@@ -27,9 +27,12 @@ export {
 
 // Geometry intake
 export { createUploadIntent } from "./geometry/createUploadIntent";
-export { onGeometryUploaded, processGeometry } from "./geometry/processGeometry";
-export { measureGeometry } from "./geometry/measureGeometry";
-export { prepareDomain, runPrepareDomain } from "./geometry/prepareDomain";
+export {
+  createCarIntent, ingestCar, failCarImport,
+} from "./geometry/inspectedCar";
+export {
+  createArtifactIntent, ingestPreparedDomain, failDomainBuild,
+} from "./geometry/preparedDomain";
 export {
   createSimulation, saveSimulation, onSimulationWritten,
 } from "./simulations";

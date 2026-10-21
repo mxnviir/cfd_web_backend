@@ -175,7 +175,12 @@ service cloud.firestore {
           // tunnel offsets, wheel radius. A preference, not an entitlement —
           // the server clamps every one of them again in prepareDomain, so
           // nothing here can buy a bigger run than it pays for.
-          'workbench_defaults'
+          'workbench_defaults',
+          // The classic site's camelCase names for the same two fields. It
+          // predates the snake_case convention and writes users/{uid} with
+          // its own field names; accepting both keeps its profile screens
+          // working without a data migration.
+          'teamName', 'contactEmail'
         ])
         && (!('last_seen' in changed()) || incoming().last_seen == request.time)
         && textOk(incoming().get('name', null), 200)
@@ -349,6 +354,27 @@ service cloud.firestore {
               || (textOk(incoming().get('name', null), 200)
                   && incoming().get('entity_type', 'face') in ['face', 'solid']
                   && incoming().get('step_ids', []).size() <= 5000));
+      }
+
+      // A browser-built tunnel's reserved upload paths, and what became of
+      // them. Created by the createArtifactIntent callable alone, because
+      // the paths and the version inside are what ingestPreparedDomain
+      // checks the uploaded bytes against: a client that could rewrite them
+      // could have another user's car filed as its own. The page may move
+      // the state and nothing else.
+      match /artifact_intents/{token} {
+        allow read: if signedIn()
+          && (resource.data.user_id == request.auth.uid
+              || (resource.data.get('group_id', null) != null
+                  && memberOf(resource.data.group_id)));
+        allow create: if false;
+        allow update: if signedIn()
+          && (resource.data.user_id == request.auth.uid
+              || (resource.data.get('group_id', null) != null
+                  && canEditGroup(resource.data.group_id)))
+          && changed().hasOnly(['state', 'consumed_at', 'error'])
+          && incoming().state in ['consumed', 'failed', 'cancelled'];
+        allow delete: if false;
       }
     }
 

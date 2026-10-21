@@ -4,7 +4,7 @@
 // sure way to get back memory an engine fault may have left in a bad state.
 import { OcctKernel } from "occt-wasm";
 import wasmUrl from "occt-wasm/dist/occt-wasm.wasm?url";
-import { prepareTunnel, CutError } from "./cut-core.js";
+import { prepareTunnel, CutError } from "../../src/workbench/geometry/cut-core.js";
 
 let kernel = null;
 

@@ -40,6 +40,8 @@ import { useRoute } from "./route";
 import { useUser, useDoc, useGroupCollection, useSaver, useTabLock } from "./data";
 import { db, storage, functions } from "../lib/firebase";
 import { currentVersion, rawVersion } from "../lib/geometry";
+import { prepareDomainInBrowser } from "./geometry/buildTunnel";
+import { prepareCarInBrowser } from "./geometry/buildCar";
 import "./tokens.css";
 import "./workbench.css";
 // The shared Modal lives in the dashboard folder and its styles live with it.
@@ -86,17 +88,80 @@ export function LaunchScreen({ state, note }) {
   );
 }
 
-function GoToDashboard() {
+/**
+ * /workbench with no group: an address with a bit missing.
+ *
+ * The classic site's sidebar has no group picker - it predates groups - so
+ * its Workbench item lands here. The most recently changed group is almost
+ * always the one they mean, so that is where it goes. Somebody with no
+ * group at all could not otherwise make one (the group dialog lived on the
+ * dashboard page the classic site replaced), so this screen makes one
+ * rather than sending them into a dead end.
+ */
+function PickGroup({ uid }) {
+  const [none, setNone] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    const t = setTimeout(() => location.replace("/dashboard"), 300);
-    return () => clearTimeout(t);
-  }, []);
-  return <div className="wb wb-boot">Opening your groups.</div>;
+    let stop = false;
+    (async () => {
+      try {
+        // A user has a handful of groups at most; fetching and sorting them
+        // here avoids a composite index the project would otherwise need.
+        const snap = await db.collection("groups")
+          .where("userId", "==", uid).limit(50).get();
+        const newest = snap.docs
+          .map((d) => ({ id: d.id, at: d.data()?.updatedAt?.seconds ?? 0 }))
+          .sort((a, b) => b.at - a.at)[0];
+        if (stop) return;
+        if (newest) location.replace(`/workbench/${newest.id}`);
+        else setNone(true);
+      } catch {
+        // Nothing sane to do without Firestore; the site will say what is
+        // wrong on its own screens.
+        location.replace("/#dash");
+      }
+    })();
+    return () => { stop = true; };
+  }, [uid]);
+
+  if (!none) return <div className="wb wb-boot">Opening your groups.</div>;
+  return (
+    <div className="wb wb-boot">
+      <p>Your first group holds your car and every run of it.</p>
+      <input className="wb-field" value={name} maxLength={200} placeholder="Group title"
+        onChange={(e) => setName(e.target.value)} />
+      <button type="button" className="wb-btn wb-btn-primary" disabled={!name.trim() || busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await functions.httpsCallable("createGroup")({
+              name: name.trim(), description: null, category: null, tags: null,
+            });
+            const id = res?.data?.group_id;
+            if (id) location.replace(`/workbench/${id}`);
+            else throw new Error("The group was not created.");
+          } catch (err) {
+            setError(err?.message || String(err));
+            setBusy(false);
+          }
+        }}>
+        {busy ? "Creating" : "Create group"}
+      </button>
+      {error ? <p className="wb-perror">{error}</p> : null}
+    </div>
+  );
 }
 
 function SignedOut({ next }) {
   useEffect(() => {
-    const t = setTimeout(() => location.assign(`/dashboard?next=${encodeURIComponent(next)}`), 400);
+    // The classic site signs in on its own sidebar and switches views in
+    // memory, so there is no ?next= to hand it: it opens on its dashboard
+    // view and the sidebar gets you everywhere from there.
+    const t = setTimeout(() => location.assign("/#dash"), 400);
     return () => clearTimeout(t);
   }, [next]);
   return <div className="wb-boot">Taking you to sign in.</div>;
@@ -316,20 +381,17 @@ export default function App() {
     saver.save(() => functions.httpsCallable("updateGroup")({ group_id: groupId, name }));
 
   /**
-   * The distance between two faces, from the geometry service.
+   * The distance between two faces, from the model the viewer is holding.
    *
-   * Not computed here. The shortest distance between two curved surfaces is
-   * not the shortest distance between two triangle meshes of them, and on a
-   * fillet the two answers differ by more than the number is worth.
+   * The geometry service used to answer this with the exact B-rep distance;
+   * its replacement answers from the meshes, which is exact on the flat
+   * pairs a designer actually measures and a mesh deflection high on tight
+   * curves. See engine.measurePair for the trade.
    */
   const measurePair = useCallback(async (a, b) => {
-    const v = currentVersion(geometry);
-    if (!v?.step_path) throw new Error("This geometry has no STEP to measure against.");
-    const res = await functions.httpsCallable("measureGeometry")({
-      geometry_id: geometry.id, version: geometry.currentVersion, faces: [a, b],
-    });
-    return res.data;
-  }, [geometry]);
+    if (!engine) throw new Error("The viewer is still loading.");
+    return engine.measurePair(a, b);
+  }, [engine]);
 
   // "+" on the tree opens the import dialog. It used to navigate to
   // /geometry/new, which rendered the empty state and nothing else, so the
@@ -337,29 +399,99 @@ export default function App() {
   const addGeometry = () => setUploading(true);
 
   /**
+   * The built flow region, handed over as the STEP file it is stored as.
+   * Temporary: for taking the tunnel elsewhere until the solver path is
+   * final. The tunnel with the car cut out, exactly as the run would solve.
+   */
+  const exportTunnelStep = useCallback(() => {
+    const v = currentVersion(geometry);
+    if (v?.kind !== "flow_domain" || !v?.step_path) {
+      setBanner({ message: "Build the wind tunnel first." });
+      return;
+    }
+    // A plain download URL carries no auth header, and the object is private:
+    // the browser would fetch it signed-out and get a 403. getBytes goes
+    // through the SDK, which attaches the signed-in user's token, so the same
+    // code works against the emulator and production. The tunnel is a few MB,
+    // so holding it in memory for the click is fine.
+    storage.bytes(v.step_path)
+      .then((bytes) => {
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/step" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "flow-region.step";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        // Not immediately: some browsers cancel the download if the blob URL
+        // is revoked before the download manager has taken the bytes.
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      })
+      .catch((err) => setBanner({ message: err.message || String(err) }));
+  }, [geometry]);
+
+  /**
+   * A car whose import never finished - the tab was closed mid-import, the
+   * machine slept - has its raw file in storage and no version, and nothing
+   * would ever move it again: the container that used to notice is gone. The
+   * Workbench is the geometry engine now, so opening such a car finishes the
+   * import, from the same file the first attempt had.
+   */
+  const importingRef = useRef(null);
+  useEffect(() => {
+    const id = geometry?.id;
+    const status = geometry?.status;
+    if (importingRef.current === id && (status === "ready" || status === "failed")) {
+      importingRef.current = null;
+    }
+    const stuck = id && (status === "uploading" || status === "queued")
+      && geometry?.rawPath && !rawVersion(geometry) && importingRef.current !== id;
+    if (!stuck) return;
+    importingRef.current = id;
+    prepareCarInBrowser({
+      geometryId: id,
+      groupId,
+      rawPath: geometry.rawPath,
+      unit: geometry.inputUnit ?? undefined,
+    }).catch((err) => {
+      // A second run against a live import is refused by the backend; the
+      // message then needs nobody's attention. Anything else belongs on the
+      // banner, where the tree's failure note also points.
+      if (!/already being imported/i.test(String(err?.message || err))) {
+        setBanner({ message: err?.message || String(err) });
+      }
+    });
+  }, [geometry?.id, geometry?.status, groupId]);
+
+  /**
    * Build the wind tunnel and write the setup.
    *
-   * The callable returns as soon as the work is dispatched, not when it is
-   * done: cutting a car out of a box and re-tessellating it takes minutes, and
-   * a browser holding a callable open that long times out and reports a
-   * failure for something that is still going perfectly well. The geometry
-   * document carries `domain_status`, so the tree shows what is happening and
-   * the new simulation appears in it the moment the worker writes it.
+   * The cut itself runs in the browser, in a Web Worker, so the page stays
+   * responsive and no Cloud Run container is spent on geometry the browser
+   * can do itself. What the backend keeps is the part that must not trust the
+   * browser: reserving the storage paths, checking the bytes that landed, and
+   * writing the version and the simulation. The geometry document carries
+   * `domain_status`, so the tree shows what is happening and the new
+   * simulation appears in it the moment the backend writes it.
    */
   const runSetup = useCallback(async (form, car) => {
     if (!car?.id) return;
     setSetupBusy(true);
     setSetupError(null);
+    setSetupProgress(null);
     try {
       const existing = simulations.rows.find((sim) => sim.geometryId === car.id);
-      await functions.httpsCallable("prepareDomain")({
-        geometry_id: car.id,
-        group_id: groupId,
-        simulation_id: existing?.id ?? null,
-        ...form,
+      await prepareDomainInBrowser({
+        geometry: car,
+        groupId,
+        simulationId: existing?.id ?? null,
+        form,
+        onProgress: setSetupProgress,
       });
+      setSetupProgress(null);
     } catch (err) {
       setSetupError(err?.message || String(err));
+      setSetupProgress(null);
     } finally {
       setSetupBusy(false);
     }
@@ -407,6 +539,7 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupError, setSetupError] = useState(null);
+  const [setupProgress, setSetupProgress] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [renaming, setRenaming] = useState(false);
 
@@ -475,12 +608,12 @@ export default function App() {
   // there and say "No group in the address" over a link, which is a dead end
   // dressed up as a message: the user cannot supply a group id by hand, so
   // the only thing they can do is the thing this now does for them.
-  if (!groupId) return <GoToDashboard />;
+  if (!groupId) return <PickGroup uid={user.uid} />;
   if (!group.loading && !group.data) {
     return (
       <div className="wb wb-boot">
         That group does not exist, or it is not shared with you.{" "}
-        <a href="/dashboard">Go to the dashboard</a>.
+        <a href="/#dash">Go to the dashboard</a>.
       </div>
     );
   }
@@ -565,6 +698,8 @@ export default function App() {
             credits={credits}
             busy={setupBusy}
             error={setupError}
+            onExportStep={exportTunnelStep}
+            progress={setupProgress}
             onBuild={(formValues) => runSetup(formValues, geometry)}
             onSaveSimulation={saveStepSettings}
             onQueue={(run) => {

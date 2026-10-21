@@ -102,13 +102,19 @@ export const queueRun = onCall(async (request) => {
 
   const geo = await db.collection(COL.geometries).doc(geometryId).get();
   const version = Number(geo.get("current_version") ?? 0);
-  const stepPath = geo.get(`versions.${version}`)?.step_path;
+  const versionDoc = geo.get(`versions.${version}`) ?? {};
+  const stepPath = versionDoc.step_path;
   if (!stepPath) {
     throw new HttpsError(
       "failed-precondition",
       "This geometry has no STEP to send to the solver. Upload it again.",
     );
   }
+  // The entity labels from the same cut, stored next to the STEP. The spec
+  // path resolves faces from faces.json rather than this CSV, but the job
+  // names it so the file set travels together and the older worker path
+  // could run this job unchanged.
+  const labelPath = versionDoc.label_path ?? null;
 
   const params = clampRunParams({
     iteration_count: spec?.simulationControl?.endTime?.value,
@@ -182,6 +188,7 @@ export const queueRun = onCall(async (request) => {
     spec_mode: true,
     status: "pending",
     step_path: stepPath,
+    label_path: labelPath,
     iteration_count: params.iteration_count,
     refine_level: params.refine_level,
     inlet_velocity: params.inlet_velocity,

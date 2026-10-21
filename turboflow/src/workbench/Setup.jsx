@@ -118,7 +118,8 @@ function Step({ n, title, state, summary, open, onToggle, children }) {
 
 export default function Setup({
   geometry, geometries = [], carVersion, tunnelVersion, simulation, runs = [],
-  defaults, busy, error, onBuild, onSaveSimulation, onQueue, onSaveDefaults,
+  defaults, busy, error, progress, onBuild, onSaveSimulation, onQueue, onSaveDefaults,
+  onExportStep,
   onHighlight, onImport, onPickCar, onCarAction, credits,
   sims = [], simStatus = {}, onPickSim, onNewSim,
 }) {
@@ -208,7 +209,7 @@ export default function Setup({
           <Icon name="cube" size={26} />
           <p className="su-empty-title">No car yet</p>
           <p className="su-empty-note">
-            Import a STEP, IGES or STL file. TurboFlow builds the wind tunnel
+            Import a STEP file. TurboFlow builds the wind tunnel
             around it and fills in the setup.
           </p>
           <button type="button" className="wb-btn wb-btn-primary su-quick" onClick={onImport}>
@@ -311,6 +312,13 @@ export default function Setup({
             : "Uses your saved defaults. Or work through the steps below."}
         </p>
       </div>
+
+      {progress ? (
+        <div className="wb-upprog">
+          <div className="wb-upbar"><span style={{ width: `${Math.round((progress.fraction ?? 0) * 100)}%` }} /></div>
+          <span className="wb-muted">{progress.text || `${Math.round((progress.fraction ?? 0) * 100)}%`}</span>
+        </div>
+      ) : null}
 
       {error || buildFailed
         ? <p className="wb-perror su-error" role="alert">{error || `The wind tunnel was not built. ${buildFailed}`}</p>
@@ -451,6 +459,21 @@ export default function Setup({
           <Note>
             The last run meshed to {Number(simulation.mesh.cell_count).toLocaleString()} cells.
           </Note>
+        ) : null}
+        {built ? (
+          <div className="su-export">
+            {/* Temporary: the flow region as a STEP file, for taking the
+                tunnel somewhere else until the solver path is final. */}
+            <button type="button" className="wb-btn su-export-btn"
+              disabled={!tunnelVersion?.step_path || busy} onClick={onExportStep}>
+              Export the flow region (STEP)
+            </button>
+            <Note>
+              The tunnel exactly as it was built, with the car cut out. A half
+              tunnel exports half a tunnel - build full width first if you
+              need the whole thing.
+            </Note>
+          </div>
         ) : null}
       </Step>
 

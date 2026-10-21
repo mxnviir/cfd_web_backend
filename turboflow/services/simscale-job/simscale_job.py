@@ -1458,13 +1458,18 @@ def run_spec_mode(job, job_id, run_id):
 
     geo_doc = db.collection("geometries").document(geometry_id_local).get().to_dict() or {}
     options = geo_doc.get("import_options") or {}
+    version_doc = (geo_doc.get("versions") or {}).get(str(version)) \
+        or (geo_doc.get("versions") or {}).get(version) or {}
+    # The version records the unit its STEP was written in: a tunnel built in
+    # the browser is millimetres, one the old geometry service built is metres.
+    # The import request states the source unit, and a wrong one scales the car
+    # a thousand times either way - metres for a millimetre file is the stadium
+    # mistake in the other direction. Read it; "m" only for versions old
+    # enough not to record one.
+    input_unit = version_doc.get("unit") or "m"
     simscale_geometry_id = upload_geometry_spec(
         api, local_step, f"tf-{job_id}", job_id,
-        # The geometry service always writes metres into the STEP it exports,
-        # whatever the file arrived in, so the unit here is not the user's
-        # input_unit. Sending millimetres for a model already converted is
-        # the mistake that produces a car the size of a stadium.
-        input_unit="m",
+        input_unit=input_unit,
         facet_split=bool(options.get("facet_split", False)),
         sewing=bool(options.get("sewing", True)),
         improve=bool(options.get("improve", True)),

@@ -149,6 +149,37 @@ await test("a user cannot write a geometry version directory", () =>
   denied(uploadBytes(ref(storage, `users/${A}/geometries/geo1/v1/faces.json`), new Uint8Array([1])),
     "writing faces.json, which would let a client rename the inlet"));
 
+// The browser cut's staging folder. Same deal as a raw upload - write-once,
+// owner only - plus the two shape checks: a token the backend would never
+// mint, and a file that is not one of the five artefacts.
+const TOKEN = "4f7c9e2ab35d81c06b9a7d3f2e1c8a54";
+const incoming = (who, geo, token, name) =>
+  `users/${who}/geometries/${geo}/incoming/${token}/${name}`;
+
+await test("a user uploads their own tunnel artefact", () =>
+  allowed(uploadBytes(ref(storage, incoming(A, "geo4", TOKEN, "geometry.glb")),
+    new Uint8Array([1, 2])), "uploading own geometry.glb"));
+
+await test("a tunnel artefact cannot be overwritten", () =>
+  denied(uploadBytes(ref(storage, incoming(A, "geo4", TOKEN, "geometry.glb")),
+    new Uint8Array([9])), "overwriting a staged artefact"));
+
+await test("a token the backend would not mint is refused", () =>
+  denied(uploadBytes(ref(storage, incoming(A, "geo4", "short", "faces.json")),
+    new Uint8Array([1])), "uploading under a malformed token"));
+
+await test("only the five artefacts belong in staging", () =>
+  denied(uploadBytes(ref(storage, incoming(A, "geo4", TOKEN, "car.blend")),
+    new Uint8Array([1])), "uploading an unexpected file name"));
+
+await test("a user cannot stage into another user's folder", () =>
+  denied(uploadBytes(ref(storage, incoming(B, "geo9", TOKEN, "geometry.step")),
+    new Uint8Array([1])), "staging into another user's folder"));
+
+await test("staging cannot be listed", () =>
+  denied(listAll(ref(storage, `users/${A}/geometries/geo4/incoming/${TOKEN}`)),
+    "listing staged artefacts"));
+
 await test("nothing outside the named paths is reachable", () =>
   denied(getBytes(ref(storage, "secrets/keys.json")), "reading an unmatched path"));
 

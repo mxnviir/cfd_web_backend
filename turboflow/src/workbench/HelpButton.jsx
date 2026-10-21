@@ -33,7 +33,7 @@ export default function HelpButton({ groupId }) {
     <div className="wb-help" ref={box}>
       {open ? (
         <div className="wb-card wb-help-pop" role="dialog" aria-label="Help and support">
-          <a className="wb-help-item" href="/docs">
+          <a className="wb-help-item" href="/#docs">
             <Icon name="file" size={15} /> Read the docs
           </a>
           {/* /docs has no #setup anchor, so this opened the same page as the

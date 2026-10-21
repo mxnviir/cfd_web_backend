@@ -15,9 +15,15 @@ import React, { useRef, useState } from "react";
 import { Modal } from "../dashboard/dialogs";
 import { Icon } from "./icons";
 import { functions, storage } from "../lib/firebase";
+import { prepareCarInBrowser } from "./geometry/buildCar";
 
-/** What the geometry service can actually read. Build spec 7.1, decided 10 Sep. */
-const EXTS = ["step", "stp", "iges", "igs", "stl"];
+/**
+ * What the browser's geometry engine can read: STEP. The geometry service
+ * also took IGES and STL; the occt-wasm engine that replaced it takes STEP
+ * only, and anything else would upload and then fail at import with a worse
+ * message than the dialog can give.
+ */
+const EXTS = ["step", "stp"];
 const ACCEPT = EXTS.map((e) => `.${e}`).join(",");
 
 /** The geometry service refuses anything larger, so refuse it here too. */
@@ -66,6 +72,9 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
   const [unit, setUnit] = useState(DEFAULT_UNIT);
   const [unitFromFile, setUnitFromFile] = useState(null);
   const [progress, setProgress] = useState(null);
+  // The second phase: reading the file and building the model, which used to
+  // happen on a container after this dialog closed.
+  const [preparing, setPreparing] = useState(null);
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
   const input = useRef(null);
@@ -74,7 +83,7 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
     if (!f) return;
     setError(null);
     if (!EXTS.includes(extOf(f.name))) {
-      setError(`TurboFlow reads STEP, IGES and STL files. Export your model as STEP and try again.`);
+      setError(`TurboFlow reads STEP files. Export your model as STEP and try again.`);
       return;
     }
     if (f.size === 0) {
@@ -136,10 +145,22 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
       });
 
       setProgress(1);
+
+      // The import itself now runs here, in the browser, on the same engine
+      // the tunnel cut uses. The dialog stays open to show it, because "the
+      // file uploaded and then nothing happened" was the failure mode that
+      // made people upload twice; closing the tab mid-import is still safe -
+      // opening the car again picks the import back up.
+      setPreparing({ fraction: 0, text: "Preparing the model" });
+      await prepareCarInBrowser({
+        geometryId, groupId, file, unit,
+        onProgress: (p) => setPreparing(p),
+      });
       onUploaded?.(geometryId);
       onClose();
     } catch (err) {
       setProgress(null);
+      setPreparing(null);
       setError(err?.message || String(err));
     }
   };
@@ -169,7 +190,7 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
           <button type="button" className="wb-btn" onClick={() => input.current?.click()}>
             Choose a file
           </button>
-          <p className="wb-drop-note">STEP, IGES or STL, up to {mb(MAX_BYTES)}.</p>
+          <p className="wb-drop-note">STEP, up to {mb(MAX_BYTES)}.</p>
           <input ref={input} type="file" accept={ACCEPT} hidden
             aria-label="CAD file"
             onChange={(e) => take(e.target.files?.[0])} />
@@ -213,9 +234,8 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
                 </select>
               </span>
               <span className="wb-phint">
-                {extOf(file.name) === "stl"
-                  ? "An STL carries no unit, so this is the one thing you have to get right."
-                  : "This file does not declare a unit. Check it against the size of the real car."}
+                This file does not declare a unit. Check it against the size of
+                the real car.
               </span>
             </label>
           )}
@@ -223,9 +243,15 @@ export default function GeometryUpload({ groupId, onClose, onUploaded }) {
 
           {busy ? (
             <div className="wb-upprog">
-              <div className="wb-upbar"><span style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+              <div className="wb-upbar"><span style={{
+                width: `${Math.round((preparing ? preparing.fraction : progress) * 100)}%`,
+              }} /></div>
               <span className="wb-muted">
-                {progress < 1 ? `Uploading ${Math.round(progress * 100)}%` : "Preparing the preview"}
+                {preparing
+                  ? (preparing.text || `Preparing the model ${Math.round((preparing.fraction ?? 0) * 100)}%`)
+                  : progress < 1
+                    ? `Uploading ${Math.round(progress * 100)}%`
+                    : "Preparing the model"}
               </span>
             </div>
           ) : null}

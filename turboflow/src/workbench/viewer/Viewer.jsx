@@ -508,7 +508,7 @@ export default function Viewer({
           that broke, is the least useful thing on the screen. */}
       {!glbUrl && !loading ? (
         <div className={"wb-viewport-note" + (emptyNote ? " wb-viewport-bad" : "")}>
-          {emptyNote || "Select a geometry, or upload a STEP, IGES or STL file to begin."}
+          {emptyNote || "Select a geometry, or upload a STEP file to begin."}
         </div>
       ) : null}
 

@@ -19,7 +19,11 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync, crc32 } from "node:zlib";
 import vm from "node:vm";
-import { ORIGIN } from "./seo.mjs";
+
+// Where the site is served from, stamped into the add-in. Lived in seo.mjs
+// until the prerendered marketing pages went away; the add-in build is the
+// only thing that still needed it.
+const ORIGIN = "https://turboflow-test.web.app";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = resolve(root, "services/TurboFlow_CFD_fusion_addin.py");

@@ -3,7 +3,7 @@
 // Run: node run-node.mjs <car.step> [--full]
 import { readFileSync, writeFileSync } from "node:fs";
 import { OcctKernel } from "occt-wasm";
-import { prepareTunnel } from "./cut-core.js";
+import { prepareTunnel } from "../../src/workbench/geometry/cut-core.js";
 
 const [file, ...flags] = process.argv.slice(2);
 const options = { symmetry: !flags.includes("--full"), up: 1.5, down: 0.5, side: 0.3, top: 0.3 };
@@ -21,4 +21,7 @@ console.log(JSON.stringify(out.stats, null, 1));
 if (flags.includes("--write")) {
   writeFileSync("out-geometry.step", out.step);
   writeFileSync("out-entity_labels.csv", out.labels);
+  writeFileSync("out-faces.json", JSON.stringify(out.faces));
+  writeFileSync("out-solids.json", JSON.stringify(out.solids));
+  writeFileSync("out-geometry.glb", Buffer.from(out.glb.buffer, out.glb.byteOffset, out.glb.byteLength));
 }

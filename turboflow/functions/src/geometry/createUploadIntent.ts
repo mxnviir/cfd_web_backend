@@ -35,9 +35,10 @@ export const MAX_RAW_BYTES = 60 * 1024 * 1024;
 
 const FILENAME = { step: "geometry.step", labels: "entity_labels.csv" } as const;
 
-/** Which of the three the extension means, for the geometries document. */
-const FORMAT_OF: Record<string, "STEP" | "IGES" | "STL"> = {
-  step: "STEP", stp: "STEP", iges: "IGES", igs: "IGES", stl: "STL",
+/** Which extension means what, for the geometries document. STEP only:
+ *  the browser's occt-wasm engine is the reader now, and it reads STEP. */
+const FORMAT_OF: Record<string, "STEP"> = {
+  step: "STEP", stp: "STEP",
 };
 
 /**
@@ -96,6 +97,12 @@ export const createUploadIntent = onCall(async (request) => {
   if (data.kind === "raw") {
     if (!data.ext) {
       throw new HttpsError("invalid-argument", "Say which kind of file this is.");
+    }
+    if (!FORMAT_OF[data.ext]) {
+      throw new HttpsError(
+        "invalid-argument",
+        "TurboFlow reads STEP files. Export your model as STEP and try again.",
+      );
     }
     if (data.size_bytes > MAX_RAW_BYTES) {
       throw new HttpsError(

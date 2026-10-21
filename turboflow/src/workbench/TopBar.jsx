@@ -129,7 +129,7 @@ export default function TopBar({
 
   return (
     <header className="wb-topbar">
-      <a className="wb-logo" href="/dashboard" aria-label="TurboFlow dashboard">
+      <a className="wb-logo" href="/#dash" aria-label="TurboFlow dashboard">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
           <circle cx="16" cy="16" r="15" fill="var(--wb-accent)" />
           <path d="M8 20c6 0 6-8 12-8M8 13h5M19 22h5" fill="none" stroke="var(--wb-on-accent)"
@@ -176,7 +176,7 @@ export default function TopBar({
             the round button at the bottom right of the viewer, where it does
             not compete with the account menu. */}
         <Menu label="Help">
-          <MenuItem onClick={() => location.assign("/docs")}>Documentation</MenuItem>
+          <MenuItem onClick={() => location.assign("/#docs")}>Documentation</MenuItem>
           <MenuItem onClick={onHelp}>Keyboard shortcuts</MenuItem>
           <MenuItem onClick={() => location.assign("mailto:support@turboflow.cloud")}>
             Email support
@@ -192,8 +192,8 @@ export default function TopBar({
             </>
           }
         >
-          <MenuItem onClick={() => location.assign("/dashboard")}>Dashboard</MenuItem>
-          <MenuItem onClick={() => location.assign("/billing")}>Billing</MenuItem>
+          <MenuItem onClick={() => location.assign("/#dash")}>Dashboard</MenuItem>
+          <MenuItem onClick={() => location.assign("/#billing")}>Billing</MenuItem>
           <MenuItem onClick={() => auth.signOut().then(() => location.assign("/"))}>
             Sign out
           </MenuItem>

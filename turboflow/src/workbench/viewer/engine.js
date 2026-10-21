@@ -341,6 +341,107 @@ export class Viewer {
   }
 
   /**
+   * The four numbers the measure tool shows for a pair of faces, from the
+   * model already on the GPU.
+   *
+   * This used to be a round trip to the geometry service, which asked OCC for
+   * the exact distance between the two B-rep faces. The browser engine has
+   * no such call, so the distance here is measured between the meshes: every
+   * vertex of one face against the surface of the other, both ways round. On
+   * the pairs a designer actually measures - flat panels - the closest point
+   * lies inside a triangle and the answer is exact; on tight curves it can
+   * read a mesh deflection (a tenth of a millimetre) high, which is the cost
+   * of doing this locally and instantly rather than shipping the STEP to a
+   * container.
+   *
+   * The rest is arithmetic on the face survey, which was always exact: the
+   * far corner is the bounding-box extremum every CAD package reports, and
+   * the angle and the along-normal gap only exist for two planes.
+   */
+  measurePair(a, b) {
+    const geo = this.mesh?.geometry;
+    if (!geo) throw new Error("There is no model loaded to measure.");
+    const faces = this.faces ?? [];
+    const fa = faces[a], fb = faces[b];
+    if (!fa || !fb) throw new Error("No such face on this model.");
+    if (a === b) throw new Error("Those are the same face.");
+
+    const round9 = (v) => Math.round(v * 1e9) / 1e9;
+    const out = { min_distance_m: 0, max_distance_m: 0 };
+
+    // The far corner, exactly as the service computed it: the extremum of
+    // the two bounding boxes, not a second geometric pass, because the far
+    // extremum is not well defined on curved surfaces.
+    let largest = -Infinity;
+    for (const k1 of ["min", "max"]) {
+      for (const k2 of ["min", "max"]) {
+        const p = fa.bbox[k1], q = fb.bbox[k2];
+        largest = Math.max(largest,
+          Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]));
+      }
+    }
+    out.max_distance_m = round9(largest);
+
+    // Two planes: the angle between them and the distance along the normal.
+    // Meaningingless for anything curved, so only said when both are planes.
+    if (Array.isArray(fa.normal) && Array.isArray(fb.normal)) {
+      const dot = Math.max(-1, Math.min(1,
+        fa.normal[0] * fb.normal[0] + fa.normal[1] * fb.normal[1]
+        + fa.normal[2] * fb.normal[2]));
+      out.angle_deg = Math.round(Math.acos(Math.abs(dot)) * 180 / Math.PI * 1e4) / 1e4;
+      const gap = [
+        (fb.cx_m ?? 0) - (fa.cx_m ?? 0),
+        (fb.cy_m ?? 0) - (fa.cy_m ?? 0),
+        (fb.cz_m ?? 0) - (fa.cz_m ?? 0),
+      ];
+      out.normal_distance_m = round9(Math.abs(
+        gap[0] * fa.normal[0] + gap[1] * fa.normal[1] + gap[2] * fa.normal[2]));
+    }
+
+    // The closest approach, vertex to surface, both ways. The vertices of a
+    // face are one contiguous run of the buffer and its triangles one
+    // contiguous run of the index, which is what makes a face-sized
+    // sub-geometry cheap to cut out.
+    const pos = geo.getAttribute("position");
+    const index = geo.index;
+    if (!index) throw new Error("This model has no face list to measure.");
+    const subBvh = (f) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(
+        pos.array.subarray(f.start * 3, (f.start + f.count) * 3), 3));
+      // Uint32: a big body face can hold more vertices than 16 bits address.
+      const tris = new Uint32Array(f.tri_count * 3);
+      for (let t = 0; t < f.tri_count * 3; t++) tris[t] = index.array[f.tri_start * 3 + t] - f.start;
+      g.setIndex(new THREE.BufferAttribute(tris, 1));
+      g.computeBoundsTree();
+      return g;
+    };
+    const bvhA = subBvh(fa), bvhB = subBvh(fb);
+    const target = { distance: Infinity };
+    let best = Infinity;
+    const nearest = (v, bvh) => {
+      target.distance = Infinity;
+      bvh.closestPointToPoint(v, target);
+      return target.distance;
+    };
+    const v = new THREE.Vector3();
+    for (let i = fa.start; i < fa.start + fa.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      best = Math.min(best, nearest(v, bvhB));
+    }
+    for (let i = fb.start; i < fb.start + fb.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      best = Math.min(best, nearest(v, bvhA));
+    }
+    bvhA.disposeBoundsTree();
+    bvhB.disposeBoundsTree();
+    bvhA.dispose();
+    bvhB.dispose();
+    out.min_distance_m = round9(best * (this.scaleToM || 1));
+    return out;
+  }
+
+  /**
    * The wind tunnel, drawn as glass.
    *
    * A second draw of the same geometry with the test reversed: the car pass
