@@ -59,7 +59,14 @@ export const ensureAccount = onCall(async (request) => {
   // The account's providers, from the auth record rather than the token, so a
   // Google account is recognised however this particular session was made.
   const record = await auth.getUser(uid);
-  if (!isGoogleSignUp({ data: record })) {
+  // The local test page signs in anonymously against the emulator, and an
+  // account document is what gets it past the team-setup screen. Anonymous is
+  // the one exception the emulator makes; anything else — a password account,
+  // say — is refused exactly as in production.
+  const emulated = process.env.FUNCTIONS_EMULATOR === "true";
+  // An anonymous user has no providers at all: providerData is empty.
+  const anonymous = (record.providerData ?? []).length === 0;
+  if (!(emulated && anonymous) && !isGoogleSignUp({ data: record })) {
     const via = record.providerData.map((p) => p.providerId).join(",") || "no provider";
     logger.warn(`refused an account document for ${uid}, created via ${via}: Google is the only sign-in`);
     throw new HttpsError("permission-denied",

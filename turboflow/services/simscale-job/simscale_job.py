@@ -1691,13 +1691,20 @@ def run_spec_mode(job, job_id, run_id):
         patch["results_fields"] = viewer.get("fields")
         patch["case_path"] = viewer.get("case")
     db.collection("runs").document(run_id).update(patch)
-    set_status(job_id, "complete", {
+    complete = {
         "results_glb_path": (viewer or {}).get("glb"),
         "results_fields": (viewer or {}).get("fields"),
         "case_path": (viewer or {}).get("case"),
         "simulation_id": simulation_id,
         "run_id": simulation_run_id,
-    })
+    }
+    # The final forces, named the way the classic site's results card reads
+    # them. The run's `summary` holds the same numbers under `drag`/`lift`;
+    # the job doc carries them because the SPA's cards read the job.
+    for src, dst in (("drag", "drag_N"), ("lift", "lift_N")):
+        if summary.get(src) is not None:
+            complete[dst] = summary[src]
+    set_status(job_id, "complete", complete)
     log.info("  Finished %s", run_id)
 
 

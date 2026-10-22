@@ -671,28 +671,27 @@ const App = () => {
         setIsSignedIn(true);
         try {
           const userRef = db.collection('users').doc(u.uid);
-          const doc = await userRef.get();
+          let doc = await userRef.get();
           let teamName = null;
           if (!doc.exists) {
-            await userRef.set({
-              name: u.displayName || null,
-              email: u.email || null,
-              teamName: null,
-              credits: 50,
-              sponsored: false,
-              usdPerCredit: 0.05,
-              unlimitedUsd: 100,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-              lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            // The account record is made server-side (ensureAccount), not by
+            // the client: firestore.rules denies create on users/{uid} so the
+            // starting credits cannot be claimed by hand.
+            try {
+              await functions.httpsCallable('ensureAccount')({});
+            } catch (e) {
+              console.warn('ensureAccount:', e && e.message || e);
+            }
+            doc = await userRef.get();
             teamName = null;
-            setCredits(50);
+            const createdData = doc.exists ? doc.data() || {} : {};
+            if (createdData.credits !== undefined) setCredits(createdData.credits);
           } else {
             const data = doc.data() || {};
-            teamName = data.teamName || null;
+            teamName = data.teamName || data.team_name || null;
             if (data.credits !== undefined) setCredits(data.credits);
             userRef.set({
-              lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+              last_seen: firebase.firestore.FieldValue.serverTimestamp()
             }, {
               merge: true
             }).catch(() => {});
@@ -1492,9 +1491,9 @@ const SimulationsView = ({
     const unsub = db.collection('users').doc(user.uid).onSnapshot(snap => {
       if (snap.exists) {
         const d = snap.data() || {};
-        setLapDefaults(d.lapCalcDefaults || null);
+        setLapDefaults(d.lap_calc_defaults || null);
         // Restore any previously computed race times into the module cache
-        const saved = d.jobRaceTimes || {};
+        const saved = d.job_race_times || {};
         Object.assign(_raceTimeCache, saved);
       } else {
         setLapDefaults(null);
@@ -1509,7 +1508,7 @@ const SimulationsView = ({
       setLoading(false);
       return;
     }
-    const unsub = db.collection('jobs').where('userId', '==', user.uid).limit(20).onSnapshot(snap => {
+    const unsub = db.collection('jobs').where('user_id', '==', user.uid).limit(20).onSnapshot(snap => {
       const docs = snap.docs.map(d => ({
         id: d.id,
         ...d.data()
@@ -1521,7 +1520,7 @@ const SimulationsView = ({
           if (ts.toDate) return ts.toDate().getTime();
           return new Date(ts).getTime();
         };
-        return toMs(b.createdAt) - toMs(a.createdAt);
+        return toMs(b.created_at) - toMs(a.created_at);
       });
       setJobs(docs);
       setLoading(false);
@@ -1551,7 +1550,7 @@ const SimulationsView = ({
     try {
       const refundFn = firebase.functions().httpsCallable('refundJob');
       await refundFn({
-        jobId: job.id
+        job_id: job.id
       });
       // credits will update via the live user doc listener in App
     } catch (e) {
@@ -1771,7 +1770,7 @@ const SimulationsView = ({
       color: '#666666',
       whiteSpace: 'nowrap'
     }
-  }, formatDate(job.createdAt)), canRefund(job.status) && /*#__PURE__*/React.createElement("button", {
+  }, formatDate(job.created_at || job.createdAt)), canRefund(job.status) && /*#__PURE__*/React.createElement("button", {
     onClick: () => handleRefund(job),
     disabled: !!refunding[job.id],
     style: {
@@ -1944,7 +1943,7 @@ const SimulationsView = ({
             _raceTimeCache[job.id] = data.finishTime;
             try {
               await db.collection('users').doc(user.uid).set({
-                jobRaceTimes: {
+                job_race_times: {
                   [job.id]: data.finishTime
                 }
               }, {
@@ -2940,15 +2939,15 @@ const OrderTracker = ({
       return;
     }
     const uid = user.uid;
-    const q = db.collection('jobs').where('userId', '==', uid).limit(10);
+    const q = db.collection('jobs').where('user_id', '==', uid).limit(10);
     const unsub = q.onSnapshot(snap => {
       const docs = snap.docs.map(d => ({
         id: d.id,
         ...d.data()
       }));
       docs.sort((a, b) => {
-        const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-        const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        const ta = a.created_at && a.created_at.toMillis ? a.created_at.toMillis() : 0;
+        const tb = b.created_at && b.created_at.toMillis ? b.created_at.toMillis() : 0;
         return tb - ta;
       });
       setOrders(docs.slice(0, 5));
@@ -2971,7 +2970,7 @@ const OrderTracker = ({
     try {
       const refundJobFn = functions.httpsCallable('refundJob');
       await refundJobFn({
-        jobId: order.id
+        job_id: order.id
       });
     } catch (e) {
       console.error('Refund failed', e);
@@ -3375,15 +3374,15 @@ const ActiveJobView = ({
       return;
     }
     // No orderBy to avoid needing a composite index: sort client-side
-    const q = db.collection('jobs').where('userId', '==', currentUid).limit(20);
+    const q = db.collection('jobs').where('user_id', '==', currentUid).limit(20);
     const unsub = q.onSnapshot(snap => {
       const docs = snap.docs.map(d => ({
         id: d.id,
         ...d.data()
       }));
       docs.sort((a, b) => {
-        const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-        const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        const ta = a.created_at && a.created_at.toMillis ? a.created_at.toMillis() : 0;
+        const tb = b.created_at && b.created_at.toMillis ? b.created_at.toMillis() : 0;
         return tb - ta;
       });
       setMyJobs(docs);
@@ -3407,7 +3406,7 @@ const ActiveJobView = ({
     try {
       const refundJobFn = functions.httpsCallable('refundJob');
       await refundJobFn({
-        jobId: job.id
+        job_id: job.id
       });
     } catch (e) {
       console.error(e);
@@ -4159,15 +4158,15 @@ const BillingView = ({
     if (!isSignedIn || !user || !user.uid) { setUnlimitedUntil(0); setUnlimitedStartedAt(0); setUserRate(0); setUserUnlimitedUsd(0); return; }
     const unsub = db.collection('users').doc(user.uid).onSnapshot(snap => {
       const u = snap.exists && snap.data() || {};
-      const until = u.unlimitedUntil;
+      const until = u.unlimited_until;
       const ms = until && typeof until.toMillis === 'function' ? until.toMillis()
         : (until && until.seconds ? until.seconds * 1000 : 0);
       setUnlimitedUntil(ms || 0);
-      var startedRaw = u.unlimitedStartedAt;
+      var startedRaw = u.unlimited_started_at;
       var startedMs = startedRaw && typeof startedRaw.toMillis === 'function' ? startedRaw.toMillis() : (startedRaw && startedRaw.seconds ? startedRaw.seconds * 1000 : 0);
       setUnlimitedStartedAt(startedMs || 0);
-      setUserRate(Number(u.usdPerCredit) > 0 ? Number(u.usdPerCredit) : 0);
-      setUserUnlimitedUsd(Number(u.unlimitedUsd) > 0 ? Number(u.unlimitedUsd) : 0);
+      setUserRate(Number(u.usd_per_credit) > 0 ? Number(u.usd_per_credit) : 0);
+      setUserUnlimitedUsd(Number(u.unlimited_usd) > 0 ? Number(u.unlimited_usd) : 0);
     }, () => {});
     return () => unsub();
   }, [isSignedIn, user && user.uid]);
@@ -4224,14 +4223,14 @@ const BillingView = ({
         style: { layout: 'vertical', color: product === 'unlimited' ? 'gold' : 'blue', shape: 'rect', label: 'paypal' },
         createOrder: async () => {
           setStatus({ type: 'processing', msg: 'Creating your order' });
-          const payload = product === 'unlimited' ? { product: 'unlimited', months: monthsRef.current } : { credits: amountRef.current };
+          const payload = product === 'unlimited' ? { product: 'unlimited', months: monthsRef.current } : { product: 'credits', credits: amountRef.current };
           const res = await createOrderFn(payload);
-          return res.data.orderID;
+          return res.data.order_id;
         },
         onApprove: async data => {
           setStatus({ type: 'processing', msg: 'Confirming your payment' });
           try {
-            const res = await captureFn({ orderID: data.orderID });
+            const res = await captureFn({ order_id: data.orderID });
             if ((res.data && res.data.product) === 'unlimited') {
               setStatus({ type: 'success', msg: 'Unlimited pass active! All simulations are free while it lasts.' });
             } else {
@@ -4546,7 +4545,7 @@ const LapCalcView = ({
     const unsub = ref.onSnapshot(snap => {
       if (snap.exists) {
         const d = snap.data() || {};
-        setDefaults(d.lapCalcDefaults || {});
+        setDefaults(d.lap_calc_defaults || {});
       } else {
         setDefaults({});
       }
@@ -4571,7 +4570,7 @@ const LapCalcView = ({
     setSaveMsg('');
     try {
       await db.collection('users').doc(user.uid).set({
-        lapCalcDefaults: {
+        lap_calc_defaults: {
           carWeightG: refCarWeight.current.value.trim(),
           dragForceN: refDragForce.current.value.trim(),
           muRoll: refMuRoll.current.value.trim(),
