@@ -635,15 +635,52 @@ const AuthModal = ({
 
 /* -- Root ------------------------------------------------- */
 const App = () => {
-  const [view] = useState(window.__bootView || 'home');
-  // Every view is its own page now (dash.html, billing.html, ...), built and
-  // cached separately, so switching views is a navigation to that page
-  // rather than an in-memory redraw. `view` above still says what this page
-  // load should draw.
-  const setView = id => {
-    if (!id || id === view || id === 'home' && !document.body.dataset.view) return;
-    window.location.assign('/' + id);
+  const [view, setViewState] = useState(window.__bootView || 'home');
+  // Deep links land on a page of their own (dash.html, billing.html, ...),
+  // but once any one is loaded, every other view is already in the bundle:
+  // switching stays in memory - no reload, no second download, no Firebase
+  // re-connect. The address bar follows along so the URL stays honest, and
+  // reloading it boots straight into that view's own page.
+  const VIEW_TITLES = {
+    home: 'TurboFlow | STEM Racing CFD',
+    dash: 'TurboFlow | Dashboard',
+    simulations: 'TurboFlow | My Simulations',
+    lapcalc: 'TurboFlow | Race Time Calculator',
+    billing: 'TurboFlow | Billing',
+    docs: 'TurboFlow | Setup Guide',
+    sponsorship: 'TurboFlow | Sponsorship',
+    mentorship: 'TurboFlow | Mentorship',
+    modelling: 'TurboFlow | Modelling Services',
+    terms: 'TurboFlow | Terms of Service',
+    refund: 'TurboFlow | Refund Policy',
+    spolicy: 'TurboFlow | Sponsorship Policy'
   };
+  const viewFromPath = () => {
+    const p = location.pathname.replace(/^\/+/, '').replace(/\.html$/, '');
+    return p === '' || p === 'index' ? 'home' : p;
+  };
+  const setView = id => {
+    if (!id || id === view) return;
+    if (id === 'workbench') {
+      window.location.href = '/workbench';
+      return;
+    }
+    setViewState(id);
+    try {
+      history.pushState(null, '', id === 'home' ? '/' : '/' + id);
+      document.title = VIEW_TITLES[id] || document.title;
+    } catch (e) {}
+  };
+  useEffect(() => {
+    // Back and forward between the views the address bar now remembers.
+    const onPop = () => {
+      const v = viewFromPath();
+      setViewState(v);
+      document.title = VIEW_TITLES[v] || document.title;
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [credits, setCredits] = useState(50);
   const [passUntil, setPassUntil] = useState(0);
   const [passStartedAt, setPassStartedAt] = useState(0);
