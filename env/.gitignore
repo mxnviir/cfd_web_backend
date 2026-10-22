@@ -1,0 +1,7 @@
+# Real secrets — never commit, never paste into chat
+secrets/*.env
+worker/*.env
+functions/local.env
+
+# Generated deploy artifacts (firebase.prod.json and friends)
+deploy/

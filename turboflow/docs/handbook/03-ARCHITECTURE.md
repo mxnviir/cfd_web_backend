@@ -408,9 +408,8 @@ the spec. Guessing by face order would put the inlet on the car's underside.
 
 | Setting | Where | Test | Production |
 |---|---|---|---|
-| Firebase web config | `public/firebase-config.js` (not bundled; swapped by `scripts/build-prod-site.mjs`) | turboflow-test | turboflow-7b3ca (values in a comment) |
-| `TESSELLATE_URL` | `functions/.env.<project>` | the test geometry service | `turboflow-geometry` |
-| `BUCKET_REGION` | same | default us-east1 | us-central1 |
+| Firebase web config | `env/firebase/config.*.js` at the repo root, synced to `public/firebase-config.js` by `scripts/sync-env.mjs` | turboflow-test | turboflow-7b3ca |
+| `BUCKET_REGION` | `env/functions/<project>.env`, synced into `functions/.env.<project>` at deploy | default us-east1 | us-central1 |
 | `WORKER_JOB` | same | default `simscale-job` | `simscale-worker` |
 | `PAYPAL_ENV` | same | ignored (sandbox forced) | `live` |
 | Secrets | Secret Manager | `SIMSCALE_API_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_WEBHOOK_ID`, `DISCORD_WEBHOOK_URL` | same names |

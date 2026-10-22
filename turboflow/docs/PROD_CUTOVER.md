@@ -40,7 +40,8 @@ documents and 86 accounts, the old Fusion add-in; `SHA256SUMS.txt` verifies it).
 - **Worker and geometry service names.** Production already has `simscale-job`
   (the original worker) and `turboflow-tessellate`. The new ones go in beside
   them as `simscale-worker` and `turboflow-geometry`, named in
-  `functions/.env.turboflow-7b3ca`, so the originals stay untouched for a
+  `env/functions/turboflow-7b3ca.env` (synced into `functions/.env.turboflow-7b3ca`
+  at deploy), so the originals stay untouched for a
   rollback.
 - **Production's bucket is in us-central1**; the upload triggers default to
   us-east1, so `BUCKET_REGION=us-central1` goes in the same file.
@@ -131,7 +132,7 @@ below the table.
 | 1 | Convert the data | `node scripts/prod-migrate.mjs --forward --project=turboflow-7b3ca --production --log=<backup>/migrate.log.json` | `--reverse` with the same log. Keeps anything done since. |
 | 2 | Rules and indexes | `firebase deploy --only firestore,storage --project turboflow-7b3ca` | `prod-rollback.mjs rules --project=turboflow-7b3ca --production --from=<backup>` |
 | 3 | New functions; delete `onNewJob` and `submitSimulationJob` | `firebase deploy --only functions --project turboflow-7b3ca` (not `--force`: `run_lap_calc` must stay) then `firebase functions:delete onNewJob submitSimulationJob` | delete the new-only functions and the two new PayPal ones; `build-restore-folders.py <backup> <out>`; in `<out>/jobs` and `<out>/paypal`, `npm ci` then the printed `firebase deploy` |
-| 4 | Site | `npm run build`, `node scripts/build-prod-site.mjs <backup>`, `firebase deploy --only hosting --project turboflow-7b3ca --config firebase.prod.json`; then `gcloud run services update turboflow-geometry --min-instances=1` | `prod-rollback.mjs hosting --project=turboflow-7b3ca --production --site=turboflow-7b3ca --version=fa328903006aff67`; geometry service back to min 0 |
+| 4 | Site | `npm run build`, `node scripts/build-prod-site.mjs`, `node scripts/deploy.mjs --project turboflow-7b3ca --only hosting --config ../env/deploy/firebase.prod.json` | `prod-rollback.mjs hosting --project=turboflow-7b3ca --production --site=turboflow-7b3ca --version=fa328903006aff67` |
 | 5 | Watch | a sign-up, a run, a cancel, a purchase | |
 
 ## Rolling back

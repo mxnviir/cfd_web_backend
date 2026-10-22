@@ -8,8 +8,9 @@
 // compiled bytecode of an unrelated private module.
 //
 // Built here from services/TurboFlow_CFD_fusion_addin.py instead, with the
-// project's own values from public/firebase-config.js, so a test build talks to
-// the test project and a production build to production. Written to
+// project's own values from env/firebase/config.test.js (public/firebase-config.js
+// is generated from the same file by scripts/sync-env.mjs), so a test build
+// talks to the test project and a production build to production. Written to
 // dist/downloads/TurboFlow_CFD.zip and served by Hosting from the same origin.
 //
 // A production build (scripts/build-prod-site.mjs) points it elsewhere with
@@ -28,13 +29,13 @@ const ORIGIN = "https://turboflow-test.web.app";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = resolve(root, "services/TurboFlow_CFD_fusion_addin.py");
 const OUT = process.env.ADDIN_OUT || resolve(root, "dist/downloads/TurboFlow_CFD.zip");
-const CONFIG = process.env.SITE_CONFIG || resolve(root, "public/firebase-config.js");
+const CONFIG = process.env.SITE_CONFIG || resolve(root, "..", "env", "firebase", "config.test.js");
 
 const sandbox = { window: {} };
 vm.runInNewContext(readFileSync(CONFIG, "utf8"), sandbox);
 const cfg = sandbox.window.FIREBASE_CONFIG;
 if (!cfg?.projectId || !cfg.apiKey || !cfg.storageBucket) {
-  throw new Error("public/firebase-config.js does not define projectId, apiKey and storageBucket");
+  throw new Error("the site config does not define projectId, apiKey and storageBucket");
 }
 const site = new URL(process.env.SITE_ORIGIN || ORIGIN).host;
 

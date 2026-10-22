@@ -22,9 +22,10 @@ firebase apps:create WEB "TurboFlow" --project PROJECT
 firebase apps:sdkconfig WEB <appId> --project PROJECT
 ```
 
-Put the values in `public/firebase-config.js`. They are public by design — they
-identify the project, they do not authorise anything. What protects the data is
-`firestore.rules` and `storage.rules`.
+Put the values in `env/firebase/config.test.js` at the repo root. They are public
+by design — they identify the project, they do not authorise anything.
+`scripts/sync-env.mjs` copies them into `public/firebase-config.js` (generated,
+git-ignored). What protects the data is `firestore.rules` and `storage.rules`.
 
 ## 3. Turn on the services
 
@@ -182,6 +183,11 @@ environment variables, none of which are in the source any more:
 
 The worker refuses to start if any is missing, rather than failing part way
 through a run.
+
+For local runs, put them in `env/worker/simscale-job.env` at the repo root
+(git-ignored; the worker loads it when present and never overrides variables
+already in the environment). `env/worker/simscale-job.env.example` is the
+template.
 
 ## Checks worth running afterwards
 

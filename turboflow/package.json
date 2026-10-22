@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "build:functions": "npm --prefix functions run build",
-    "emulate": "firebase emulators:start --project demo-turboflow",
+    "emulate": "node scripts/sync-env.mjs demo-turboflow && firebase emulators:start --project demo-turboflow",
     "test": "npm run build:functions && node tests/test_pricing.mjs && firebase emulators:exec --project demo-turboflow --only auth,firestore,functions,storage \"node tests/test_security.mjs\"",
-    "dev": "vite",
-    "build": "vite build && node scripts/build-addin.mjs",
+    "dev": "node scripts/sync-env.mjs turboflow-test && vite",
+    "build": "node scripts/sync-env.mjs turboflow-test && vite build && node scripts/build-addin.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "preview": "vite preview",
     "test:unit": "node tests/test_pricing.mjs"
   },

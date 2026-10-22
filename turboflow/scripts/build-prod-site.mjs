@@ -6,32 +6,33 @@
 // sitemap and robots.txt), and the Fusion add-in in downloads/, which is
 // stamped with the project it talks to. Everything else is the same bytes.
 //
-// It also writes firebase.prod.json: the hosting config with dist-prod as the
-// public folder and without the predeploy step, because firebase.json's
-// predeploy runs `npm run build`, which would quietly replace this with a test
-// build on the way out.
+// It also writes env/deploy/firebase.prod.json: the hosting config with
+// dist-prod as the public folder and without the predeploy step, because
+// firebase.json's predeploy runs `npm run build`, which would quietly replace
+// this with a test build on the way out.
 //
 //   npm run build
-//   node scripts/build-prod-site.mjs <backup dir>
-//   firebase deploy --only hosting --project turboflow-7b3ca --config firebase.prod.json
+//   node scripts/build-prod-site.mjs
+//   node scripts/deploy.mjs --project turboflow-7b3ca --only hosting --config ../env/deploy/firebase.prod.json
 //
-// Production's web config is read from the backup (project/web_app_config_*.json).
-// Those values are public identifiers, the same ones the live site serves.
-import { cpSync, rmSync, readdirSync, readFileSync, writeFileSync, statSync, existsSync } from "node:fs";
+// Production's web config is read from env/firebase/config.prod.js. Those
+// values are public identifiers, the same ones the live site serves.
+import { cpSync, rmSync, readdirSync, readFileSync, writeFileSync, statSync, existsSync, mkdirSync } from "node:fs";
 import { join, resolve, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { inflateRawSync } from "node:zlib";
+import vm from "node:vm";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const backup = process.argv[2];
+const repoRoot = resolve(root, "..");
 const PROD = "turboflow-7b3ca";
 const ORIGIN = "https://turboflow.cloud";
 const TEST_ORIGIN = "https://turboflow-test.web.app";
 const src = join(root, "dist");
 const out = join(root, "dist-prod");
-if (!backup || !existsSync(join(src, "index.html"))) {
-  console.error("usage: npm run build, then node scripts/build-prod-site.mjs <backup dir>");
+if (!existsSync(join(src, "index.html"))) {
+  console.error("usage: npm run build, then node scripts/build-prod-site.mjs");
   process.exit(2);
 }
 
@@ -51,13 +52,15 @@ for (const f of walk(out)) {
 }
 console.log(`site address: ${moved} files moved to ${ORIGIN}`);
 
-// 2. production's Firebase config
-const cfgFile = readdirSync(join(backup, "project")).find((n) => n.startsWith("web_app_config_"));
-const c = JSON.parse(readFileSync(join(backup, "project", cfgFile), "utf8"));
-if (c.projectId !== PROD) throw new Error(`the backup's web config is for ${c.projectId}`);
+// 2. production's Firebase config, from env/firebase/config.prod.js
+const sandbox = { window: {} };
+vm.runInNewContext(readFileSync(join(repoRoot, "env", "firebase", "config.prod.js"), "utf8"), sandbox);
+const c = sandbox.window.FIREBASE_CONFIG;
+if (!c?.projectId || !c?.apiKey) throw new Error("env/firebase/config.prod.js does not define a web config");
+if (c.projectId !== PROD) throw new Error(`env/firebase/config.prod.js is for ${c.projectId}`);
 writeFileSync(join(out, "firebase-config.js"), `// Which Firebase project this build talks to: production.
 //
-// Written by scripts/build-prod-site.mjs from production's own web app config.
+// Written by scripts/build-prod-site.mjs from env/firebase/config.prod.js.
 // These values identify the project; they authorise nothing. What protects the
 // data is firestore.rules and storage.rules.
 window.FIREBASE_CONFIG = {
@@ -97,9 +100,11 @@ if (left.length) {
 }
 console.log("checked: no turboflow-test value anywhere in dist-prod, add-in stamped for production");
 
-// 5. the deploy config
+// 5. the deploy config, into env/deploy/ at the repo root (git-ignored)
 const fb = JSON.parse(readFileSync(join(root, "firebase.json"), "utf8"));
 const hosting = { ...(Array.isArray(fb.hosting) ? fb.hosting[0] : fb.hosting), public: "dist-prod" };
 delete hosting.predeploy;
-writeFileSync(join(root, "firebase.prod.json"), JSON.stringify({ hosting }, null, 2) + "\n");
-console.log("firebase.prod.json written (public dist-prod, no predeploy)");
+const deployDir = join(repoRoot, "env", "deploy");
+mkdirSync(deployDir, { recursive: true });
+writeFileSync(join(deployDir, "firebase.prod.json"), JSON.stringify({ hosting }, null, 2) + "\n");
+console.log("env/deploy/firebase.prod.json written (public dist-prod, no predeploy)");

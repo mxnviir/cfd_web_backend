@@ -22,8 +22,9 @@ export const isProd = (): boolean => projectId() === PROD_PROJECT_ID;
 export const REGION = "us-central1";
 // Which Cloud Run job solves a run. Production already has a `simscale-job`:
 // the original worker, which the original app (and a rollback to it) needs
-// untouched. So production names its new worker in functions/.env.<project>
-// (WORKER_JOB=simscale-worker) and the two stand side by side.
+// untouched. So production names its new worker in env/functions/<project>.env
+// at the repo root (WORKER_JOB=simscale-worker), synced into functions/ by
+// scripts/sync-env.mjs at deploy time, and the two stand side by side.
 export const CLOUD_RUN_JOB = process.env.WORKER_JOB || "simscale-job";
 
 // Secrets live in Secret Manager, not in a .env file sitting next to the code.

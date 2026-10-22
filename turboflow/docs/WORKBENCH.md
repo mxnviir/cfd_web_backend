@@ -54,8 +54,7 @@ geometry, the merged setup, `CFD.derive(...)`, and that simulation's runs.
 1. Asks for a **STEP file**, which must already be a flow region: a box with the
    car subtracted from it.
 2. Asks for **`entity_labels.csv`**, which names which face is the inlet, the
-   outlet, the ground, and each wheel. Declining offers to derive one from
-   `TESSELLATE_URL + "/infer_labels"`.
+   outlet, the ground, and each wheel.
 3. Uploads to `users/{uid}/geometries/{geomId}/geometry.step` and
    `.../entity_labels.csv`. The uid in the path is the ownership check.
 4. Inserts `projects`, `geometries`, `simulations`, then a `jobs` row with

@@ -13,7 +13,7 @@ changing the file.
 | `package.json` | The site package. Scripts: `dev` (Vite on 5173), `build` (Vite build, then prerender, SEO files and the add-in zip), `test` (pricing test plus the Firestore rules suite on the emulators), `emulate`. Depends on React 18, three.js 0.170, three-mesh-bvh, Firebase 10, Vite 6. |
 | `vite.config.js` | The multi-page build: 15 HTML entries, shared vendor chunks (react, firebase, three), source maps off, and a dev-server rewrite so `/workbench/...` works locally like it does on Hosting. |
 | `firebase.json` | Hosting (serves `dist/`, clean URLs, `/workbench/**` rewrite, cache headers, security headers including the enforced CSP), Functions (TypeScript build on deploy), Firestore and Storage rules, emulator ports (auth 9099, functions 5001, firestore 8080, storage 9199, hosting 5000, UI 4000). |
-| `firebase.prod.json` | Written by `scripts/build-prod-site.mjs`: the same hosting config pointed at `dist-prod/`, without the predeploy step. Only for the production switch. |
+| `firebase.prod.json` | Written by `scripts/build-prod-site.mjs` to `env/deploy/` at the repo root (git-ignored): the same hosting config pointed at `dist-prod/`, without the predeploy step. Only for the production switch. |
 | `.firebaserc` | Project aliases: `default` and `test` are `turboflow-test`, `prod` is `turboflow-7b3ca`. A bare deploy can only hit test. |
 | `firestore.rules` | Database security rules (427 lines). See 03-ARCHITECTURE.md section 6. |
 | `storage.rules` | File security rules (167 lines): the uid in the path is the ownership check, write-once uploads, size caps, everything else denied. |
@@ -156,7 +156,7 @@ Full behaviour of each function is in 05-BACKEND-REFERENCE.md.
 |---|---|
 | `package.json` | `firebase-admin` 13, `firebase-functions` 7, `google-auth-library` 10, `zod` 3; `npm run build` is `tsc`. |
 | `tsconfig.json` | Compiles `src/` to `lib/`. |
-| `.env.turboflow-test`, `.env.turboflow-7b3ca` | Per-project settings read at deploy (`TESSELLATE_URL`, `BUCKET_REGION`, `WORKER_JOB`, `PAYPAL_ENV`). Not secrets, but do not paste them into chat. |
+| `.env.<project>` (from `env/functions/` at the repo root) | Per-project settings read at deploy (`BUCKET_REGION`, `WORKER_JOB`, `PAYPAL_ENV`). `scripts/sync-env.mjs` copies them in from `env/functions/`. Not secrets, but do not paste them into chat. |
 | `src/index.ts` (52) | Which functions are deployed and under what names. Global options: us-central1, max 10 instances, 60 s timeout. |
 | `src/lib/admin.ts` | One Admin SDK app; `db`, `auth`, `storage`, `bucket()`. |
 | `src/lib/config.ts` | Project id at runtime, `isProd()`, region, worker job name, the four secrets, `secretValue()` (treats "unset" as empty), `paypalBase()` (live only on production), collection names. |
@@ -267,8 +267,8 @@ the job document. A copy stamped for turboflow-test is in
 |---|---|
 | `prerender.mjs` | After `vite build`: renders each public page and writes the markup into its HTML. Uses `prerender-firebase-stub.js` in place of the real Firebase client. |
 | `seo.mjs` | Writes `robots.txt` and `sitemap.xml` into `dist/`, checked against the build's entry list. |
-| `build-addin.mjs` | Builds `dist/downloads/TurboFlow_CFD.zip` from the add-in source, stamped for the project in `public/firebase-config.js`. |
-| `build-prod-site.mjs` | Turns a test build into the production site (`dist-prod/`): production Firebase config, turboflow.cloud in canonical and OG tags and the sitemap, add-in stamped for production; refuses to finish if any test value is left. Writes `firebase.prod.json`. |
+| `build-addin.mjs` | Builds `dist/downloads/TurboFlow_CFD.zip` from the add-in source, stamped for the project in `env/firebase/config.test.js` (a prod build passes another config via `SITE_CONFIG`). |
+| `build-prod-site.mjs` | Turns a test build into the production site (`dist-prod/`): production Firebase config from `env/firebase/config.prod.js`, turboflow.cloud in canonical and OG tags and the sitemap, add-in stamped for production; refuses to finish if any test value is left. Writes `env/deploy/firebase.prod.json`. |
 | `prod-migrate.mjs` | Renames production's camelCase fields to snake_case (and back with `--reverse`), logging every change so a rollback restores the exact bytes. |
 | `prod-rollback.mjs` | Puts production's site version and rules back from the backup. |
 | `build-restore-folders.py` | Builds deployable folders of production's original functions from the backup, for a rollback. |
@@ -365,7 +365,7 @@ check the spec).
 |---|---|
 | `DESIGN_RULES.md` | The design rules (hard bans, signals, what to do instead, launch gates, review checklist). Source of truth for how every page looks. |
 | `backups/turboflow-7b3ca-2026-09-24/` | Production backup. **Holds live secrets.** |
-| `cfd_web_frontend/` | The original app's source as it was in August. Not git. Its `functions/.env` holds old secrets. |
+| `cfd_web_frontend/` | The original app's source as it was in August. Not git. Its `functions/.env` was moved to `env/secrets/production.env` at the repo root. |
 | `fusion_addin_test/` | The add-in stamped for turboflow-test. |
 | `.claude/launch.json` | Preview configs: `turboflow-vite` (5173), `turboflow-emulators` (UI on 4000), `tunnel-cut` (5190). |
 | `design_audit.json` | Output of the 9 Sep scan. Stale. |

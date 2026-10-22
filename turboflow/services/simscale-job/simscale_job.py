@@ -66,6 +66,29 @@ from simscale_sdk import (
 # Nothing project- or credential-specific is baked in. A live API key does not
 # belong in source, and a hardcoded bucket means a worker deployed anywhere else
 # still reads and writes production's files.
+
+
+def _load_env_file(path):
+    """Load KEY=VALUE lines from a dotenv-style file without overriding existing env vars."""
+    if not os.path.isfile(path):
+        return
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+# Local dev: pull in env/worker/simscale-job.env (git-ignored) when present.
+# On Cloud Run these are set on the service, so the file is simply absent.
+_load_env_file(os.environ.get("ENV_FILE") or os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "env", "worker", "simscale-job.env"))
+
 SIMSCALE_API_KEY = os.environ.get("SIMSCALE_API_KEY", "")
 SIMSCALE_API_BASE = os.environ.get("SIMSCALE_API_BASE", "https://api.simscale.com/v0")
 SIMSCALE_PROJECT_ID = os.environ.get("SIMSCALE_PROJECT_ID", "")

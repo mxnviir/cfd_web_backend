@@ -100,7 +100,7 @@ All from `C:\Users\shash\Desktop\cfd_web_backend\turboflow` unless said.
 | Site dev server | `npm run dev` | http://localhost:5173. A localhost page talks to the **emulators** (project `demo-turboflow`), never to a real project |
 | Emulators | from `cfd_web_backend`: `cmd /c "set FUNCTIONS_DISCOVERY_TIMEOUT=60 && cd turboflow && npx firebase-tools emulators:start --project demo-turboflow --only auth,firestore,functions,storage"` | UI on http://localhost:4000. `npm --prefix turboflow ...` runs the emulators in the wrong folder; use `cd`. The longer discovery timeout stops functions failing to load |
 | Build functions | `npm --prefix functions run build` | TypeScript to `functions/lib/` |
-| Build the site | `npm run build` | Vite, then prerender, SEO files, add-in zip (stamped for the project in `public/firebase-config.js`) |
+| Build the site | `npm run build` | Vite, then prerender, SEO files, add-in zip (stamped for the project in `env/firebase/config.test.js`) |
 | All offline tests and audits | `sh tests/run-all.sh` | Python tests need cadquery 2.8.0 (installed on this PC); `test_plots.py` needs the network and a key |
 | Rules suites | `sh tests/run-all.sh --emulator` or `npm test` | Starts and stops the emulators |
 | One audit | `node scripts/design-audit.mjs` (and `contrast-`, `palette-`, `token-`, `type-`, `csp-audit.mjs`, `orphan-classes.mjs`, `legacy-model-audit.mjs`) | Exit 1 on failure |
@@ -267,4 +267,4 @@ without the owner's explicit go.**
 | `SIMSCALE_API_KEY` | Secret Manager (both projects), worker environment | Needs rotating (pasted in chat on 9 Sep) |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_WEBHOOK_ID` | Secret Manager | Sandbox on test, live on production; the live webhook id is not set yet |
 | `DISCORD_WEBHOOK_URL` | Secret Manager | |
-| Old copies | `backups/turboflow-7b3ca-2026-09-24/`, `cfd_web_frontend/functions/.env`, the old production worker's code | Keep private |
+| Old copies | `backups/turboflow-7b3ca-2026-09-24/`, `env/secrets/production.env`, the old production worker's code | Keep private |
