@@ -19,6 +19,13 @@ import { resolve } from "node:path";
 
 const workbenchHtml = resolve(__dirname, "workbench.html");
 
+// Every page of the classic site: the home page plus one HTML per view, all
+// sharing the one entry in src/entries/site.jsx. The bundle (React, Firebase,
+// the app) is downloaded once and cached; each view is its own address that
+// opens directly on what it is.
+const sitePages = ["index", "dash", "simulations", "lapcalc", "billing", "docs",
+  "sponsorship", "mentorship", "modelling", "terms", "refund", "spolicy"];
+
 const workbenchRewrite = {
   name: "workbench-rewrite",
   configureServer(server) {
@@ -27,12 +34,15 @@ const workbenchRewrite = {
       if (/^\/workbench(\/|$)/.test(path)) {
         req.url = "/workbench.html";
       } else if (path === "/"
-        // The classic site is one page with in-memory views, so every
-        // address that is not a file lands on it - the same shape as the
-        // hosting catch-all. Files (dots), Vite internals (/@, /__vite)
-        // and module URLs pass through untouched.
+        // A view page: /dash serves dash.html locally, the same shape as
+        // hosting's cleanUrls. Any other address with no file in it lands on
+        // the home page, matching the hosting catch-all, so a deep link to
+        // something that no longer exists does not 404 in dev only. Files
+        // (dots), Vite internals (/@, /__vite) and module URLs pass through.
         || (!path.includes(".") && !path.startsWith("/@") && !path.startsWith("/__vite"))) {
-        req.url = "/index.html";
+        req.url = path === "/" || !sitePages.includes(path.slice(1))
+          ? "/index.html"
+          : "/" + path.slice(1) + ".html";
       }
       next();
     });
@@ -56,9 +66,10 @@ export default defineConfig({
     // to anyone who opens devtools. Build spec section 15 step 0.
     sourcemap: false,
     rollupOptions: {
-      input: {
-        workbench: workbenchHtml,
-      },
+      input: Object.fromEntries([
+        ["workbench", workbenchHtml],
+        ...sitePages.map((page) => [page, resolve(__dirname, page + ".html")]),
+      ]),
       output: {
         // One shared vendor chunk rather than a copy of React per page. Only
         // the Workbench is bundled, but this keeps React, Firebase and three

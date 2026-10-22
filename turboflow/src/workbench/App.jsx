@@ -121,7 +121,7 @@ function PickGroup({ uid }) {
       } catch {
         // Nothing sane to do without Firestore; the site will say what is
         // wrong on its own screens.
-        location.replace("/#dash");
+        location.replace("/dash");
       }
     })();
     return () => { stop = true; };
@@ -161,7 +161,7 @@ function SignedOut({ next }) {
     // The classic site signs in on its own sidebar and switches views in
     // memory, so there is no ?next= to hand it: it opens on its dashboard
     // view and the sidebar gets you everywhere from there.
-    const t = setTimeout(() => location.assign("/#dash"), 400);
+    const t = setTimeout(() => location.assign("/dash"), 400);
     return () => clearTimeout(t);
   }, [next]);
   return <div className="wb-boot">Taking you to sign in.</div>;
@@ -613,7 +613,7 @@ export default function App() {
     return (
       <div className="wb wb-boot">
         That group does not exist, or it is not shared with you.{" "}
-        <a href="/#dash">Go to the dashboard</a>.
+        <a href="/dash">Go to the dashboard</a>.
       </div>
     );
   }

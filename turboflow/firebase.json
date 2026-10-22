@@ -87,6 +87,15 @@
         ]
       },
       {
+        "source": "/site-config.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(png|jpg|jpeg|webp|avif|svg|woff2|mp4)",
         "headers": [
           {

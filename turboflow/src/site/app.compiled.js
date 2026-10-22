@@ -635,7 +635,15 @@ const AuthModal = ({
 
 /* -- Root ------------------------------------------------- */
 const App = () => {
-  const [view, setView] = useState(window.__bootView || 'home');
+  const [view] = useState(window.__bootView || 'home');
+  // Every view is its own page now (dash.html, billing.html, ...), built and
+  // cached separately, so switching views is a navigation to that page
+  // rather than an in-memory redraw. `view` above still says what this page
+  // load should draw.
+  const setView = id => {
+    if (!id || id === view || id === 'home' && !document.body.dataset.view) return;
+    window.location.assign('/' + id);
+  };
   const [credits, setCredits] = useState(50);
   const [passUntil, setPassUntil] = useState(0);
   const [passStartedAt, setPassStartedAt] = useState(0);

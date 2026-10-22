@@ -1,8 +1,13 @@
-// Autoprefixer only. Tailwind used to run here; DESIGN_RULES.md 1.10 bans it.
-// Its output was frozen into src/utilities.css for a while and then replaced
-// by named classes; only the browser reset survives, in src/reset.css.
+// Autoprefixer for everything, Tailwind for the classic site's CSS
+// (src/entries/site.css is the only file with @tailwind directives, so the
+// Workbench's styles pass through unchanged). Tailwind used to be banned
+// here for the marketing site's own design system (DESIGN_RULES.md 1.10);
+// the legacy SPA that replaced it is built out of utility classes, so its
+// CSS is compiled at build time instead of by the Tailwind Play CDN in the
+// visitor's browser.
 export default {
   plugins: {
+    tailwindcss: {},
     autoprefixer: {},
   },
 };
