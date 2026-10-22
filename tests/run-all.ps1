@@ -13,13 +13,12 @@ $suites = @(
   @{ Name = "plot shape";           Cmd = "node";   Arg = "tests\test_plot_shape.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_run_fields.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_auto_spec.mjs"; Net = $false }
+  @{ Name = "results conversion";   Cmd = "node";   Arg = "tests	est_finish.mjs";   Net = $false }
+  @{ Name = "data migration";       Cmd = "node";   Arg = "tests	est_migrate.mjs";  Net = $false }
+  @{ Name = "money and RLS";        Cmd = "node";   Arg = "supabase	estsun.mjs"; Net = $true  }
   @{ Name = "wheel grouping";      Cmd = "python"; Arg = "tests\test_wheel_grouping.py"; Net = $false }
   @{ Name = "wheel detection";     Cmd = "python"; Arg = "tests\test_wheel_detection.py"; Net = $false }
   @{ Name = "drag direction";       Cmd = "python"; Arg = "tests\test_symmetry_plane.py";  Net = $false }
-  @{ Name = "CAD edit operations";  Cmd = "python"; Arg = "tests\test_transform.py";  Net = $false }
-  @{ Name = "results export";       Cmd = "python"; Arg = "tests\test_results_export.py"; Net = $false }
-  @{ Name = "SimScale plot export"; Cmd = "python"; Arg = "tests\test_plots.py";      Net = $true  }
-  @{ Name = "credits and PayPal";   Cmd = "node";   Arg = "tests\test_billing.js";    Net = $true  }
 )
 
 Push-Location $root

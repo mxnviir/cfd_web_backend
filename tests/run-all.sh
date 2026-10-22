@@ -29,6 +29,8 @@ run test_auto_spec    node tests/test_auto_spec.mjs
 run test_clamp        node tests/test_clamp_paid_run.mjs
 run test_safe_path    node tests/test_safe_path.mjs
 run test_quantities   node tests/test_quantities.mjs
+run test_finish       node tests/test_finish.mjs
+run test_migrate      node tests/test_migrate.mjs
 run test_symmetry_plane    python tests/test_symmetry_plane.py
 run test_wheel_grouping    python tests/test_wheel_grouping.py
 run test_wheel_detection    python tests/test_wheel_detection.py
