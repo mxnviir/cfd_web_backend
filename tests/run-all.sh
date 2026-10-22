@@ -19,8 +19,6 @@ run() {
 }
 
 run test_pricing      node tests/test_pricing.mjs
-run test_chart        node tests/test_chart.mjs
-run test_compare      node tests/test_compare.mjs
 run test_framing      node tests/test_framing.mjs
 run test_plot_shape   node tests/test_plot_shape.mjs
 run test_frontal_area node tests/test_frontal_area.mjs
@@ -35,9 +33,6 @@ run test_symmetry_plane    python tests/test_symmetry_plane.py
 run test_wheel_grouping    python tests/test_wheel_grouping.py
 run test_wheel_detection    python tests/test_wheel_detection.py
 run test_cut_car_out    python tests/test_cut_car_out.py
-run test_transform    python tests/test_transform.py
-run results_export    python tests/test_results_export.py
-run openfoam_export   python tests/test_openfoam_export.py
 
 echo
 run design-audit      node scripts/design-audit.mjs

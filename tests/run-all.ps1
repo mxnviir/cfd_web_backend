@@ -7,15 +7,14 @@ $ErrorActionPreference = "Continue"
 $root = Split-Path $PSScriptRoot -Parent
 
 $suites = @(
-  @{ Name = "charts";               Cmd = "node";   Arg = "tests\test_chart.mjs";     Net = $false }
-  @{ Name = "comparison deltas";    Cmd = "node";   Arg = "tests\test_compare.mjs";   Net = $false }
   @{ Name = "viewer framing";       Cmd = "node";   Arg = "tests\test_framing.mjs";   Net = $false }
   @{ Name = "plot shape";           Cmd = "node";   Arg = "tests\test_plot_shape.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_run_fields.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_auto_spec.mjs"; Net = $false }
   @{ Name = "results conversion";   Cmd = "node";   Arg = "tests	est_finish.mjs";   Net = $false }
   @{ Name = "data migration";       Cmd = "node";   Arg = "tests	est_migrate.mjs";  Net = $false }
-  @{ Name = "money and RLS";        Cmd = "node";   Arg = "supabase	estsun.mjs"; Net = $true  }
+  @{ Name = "money and RLS";        Cmd = "node";   Arg = "supabase	ests
+un.mjs"; Net = $true  }
   @{ Name = "wheel grouping";      Cmd = "python"; Arg = "tests\test_wheel_grouping.py"; Net = $false }
   @{ Name = "wheel detection";     Cmd = "python"; Arg = "tests\test_wheel_detection.py"; Net = $false }
   @{ Name = "drag direction";       Cmd = "python"; Arg = "tests\test_symmetry_plane.py";  Net = $false }

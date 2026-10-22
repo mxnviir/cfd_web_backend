@@ -443,7 +443,11 @@ export async function streamResults(jobId: string): Promise<string> {
 
   let casePath: string | null = null;
   const solution = downloadUrlOf(items.find((i) => i.type === "SOLUTION_FIELD"));
-  if (solution) {
+  // Counted before the attempt, not after: an attempt the runtime kills for
+  // its wall clock never reaches a catch, and must still count.
+  const caseTries = Number(ids.case_tries ?? 0) + 1;
+  if (solution && caseTries <= CASE_ATTEMPTS) {
+    await recordIds(job, { case_tries: caseTries });
     try {
       const resp = await a.raw("GET", solution);
       if (!resp.ok || !resp.body) throw new Error(`solution download refused: ${resp.status}`);
@@ -460,7 +464,7 @@ export async function streamResults(jobId: string): Promise<string> {
     } catch (err) {
       console.warn(`job ${job.id}: the case could not be kept`, err);
       casePath = null;
-      if (attempts < LINK_WAIT_ATTEMPTS + CASE_ATTEMPTS) {
+      if (caseTries < CASE_ATTEMPTS) {
         await retryIn(30);
         return "case download failed, will retry";
       }
