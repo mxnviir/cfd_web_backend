@@ -1,0 +1,228 @@
+{
+  "_source": "GET /projects/6603370901628841967/simulations/f665780d-87bb-4ce9-b2a0-2dec00c51292 on 2026-09-10; model as created by the SimScale Workbench on 2026-08-14",
+  "_send_as": {
+    "name": "Incompressible",
+    "geometryId": "<simscale geometry id>",
+    "model": "<the model below>",
+    "version": "34.0"
+  },
+  "model": {
+    "type": "INCOMPRESSIBLE",
+    "turbulenceModel": "KOMEGASST",
+    "timeDependency": {
+      "type": "STATIONARY"
+    },
+    "algorithm": "SIMPLE",
+    "numOfPassiveSpecies": 0,
+    "enableAdjointOptimization": false,
+    "model": {},
+    "materials": {
+      "fluids": []
+    },
+    "initialConditions": {
+      "gaugePressure": {
+        "global": {
+          "value": 0,
+          "unit": "Pa"
+        },
+        "subdomains": []
+      },
+      "velocity": {
+        "global": {
+          "value": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "unit": "m/s"
+        },
+        "subdomains": []
+      },
+      "turbulentKineticEnergy": {
+        "global": {
+          "value": 0.00375,
+          "unit": "m²/s²"
+        }
+      },
+      "omegaDissipationRate": {
+        "global": {
+          "value": 3.375,
+          "unit": "1/s"
+        }
+      }
+    },
+    "boundaryConditions": [],
+    "advancedConcepts": {
+      "momentumSources": [],
+      "porousMediums": [],
+      "rotatingZones": []
+    },
+    "numerics": {
+      "relaxationType": "MANUAL",
+      "relaxationFactor": {
+        "pressureField": 0.3,
+        "velocityEquation": 0.7,
+        "turbulentKineticEnergyEquation": 0.3,
+        "omegaDissipationRateEquation": 0.3,
+        "ageOfFluidEquation": 0.8
+      },
+      "numNonOrthogonalCorrectors": 1,
+      "pressureReferenceCell": 0,
+      "pressureReferenceValue": {
+        "value": 0,
+        "unit": "Pa"
+      },
+      "residualControls": {
+        "velocity": {
+          "absoluteTolerance": 1e-06
+        },
+        "pressure": {
+          "absoluteTolerance": 1e-06
+        },
+        "turbulentKineticEnergy": {
+          "absoluteTolerance": 1e-06
+        },
+        "omegaDissipationRate": {
+          "absoluteTolerance": 1e-06
+        }
+      },
+      "solvers": {
+        "velocitySolver": {
+          "type": "PBICGStab",
+          "absoluteTolerance": 1e-08,
+          "relativeTolerance": 0.01,
+          "preconditioner": {
+            "type": "DILU"
+          }
+        },
+        "pressureSolver": {
+          "type": "GAMG",
+          "absoluteTolerance": 1e-06,
+          "relativeTolerance": 0.001,
+          "smoother": "GAUSSSEIDEL",
+          "numPreSweeps": 2,
+          "numPostSweeps": 1,
+          "cacheAgglomerationOn": true,
+          "numCellsCoarsestLevel": 100,
+          "numMergeLevels": 1
+        },
+        "turbulentKineticEnergySolver": {
+          "type": "PBICGStab",
+          "absoluteTolerance": 1e-08,
+          "relativeTolerance": 0.01,
+          "preconditioner": {
+            "type": "DILU"
+          }
+        },
+        "omegaDissipationRateSolver": {
+          "type": "PBICGStab",
+          "absoluteTolerance": 1e-08,
+          "relativeTolerance": 0.01,
+          "preconditioner": {
+            "type": "DILU"
+          }
+        }
+      },
+      "schemes": {
+        "timeDifferentiation": {
+          "forDefault": {
+            "type": "STEADYSTATE"
+          }
+        },
+        "gradient": {
+          "forDefault": {
+            "type": "CELLLIMITED_LEASTSQUARES",
+            "limiterCoefficient": 1
+          },
+          "grad_pressure": {
+            "type": "CELLLIMITED_LEASTSQUARES",
+            "limiterCoefficient": 1
+          },
+          "grad_velocity": {
+            "type": "CELLLIMITED_LEASTSQUARES",
+            "limiterCoefficient": 1
+          }
+        },
+        "divergence": {
+          "forDefault": {
+            "type": "GAUSS_LINEAR"
+          },
+          "div_Phi_velocity": {
+            "type": "GAUSS_LINEARUPWINDV_GRAD_U_"
+          },
+          "div_Phi_turbulentKineticEnergy": {
+            "type": "BOUNDED_GAUSS_UPWIND"
+          },
+          "div_NuEff_dev_T_grad_velocity": {
+            "type": "GAUSS_LINEAR"
+          },
+          "div_Phi_omegaDissipationRate": {
+            "type": "BOUNDED_GAUSS_UPWIND"
+          }
+        },
+        "laplacian": {
+          "forDefault": {
+            "type": "GAUSS_LINEAR_LIMITED_CORRECTED",
+            "limiterCoefficient": 0.5
+          },
+          "laplacian_NuEff_velocity": {
+            "type": "GAUSS_LINEAR_LIMITED_CORRECTED",
+            "limiterCoefficient": 0.5
+          },
+          "laplacian_1A_U_pressure": {
+            "type": "GAUSS_LINEAR_LIMITED_CORRECTED",
+            "limiterCoefficient": 0.5
+          },
+          "laplacian_Nu_velocity": {
+            "type": "GAUSS_LINEAR_LIMITED_CORRECTED",
+            "limiterCoefficient": 0.5
+          }
+        },
+        "interpolation": {
+          "forDefault": {
+            "type": "LINEAR"
+          },
+          "interpolate_HbyA": {
+            "type": "LINEAR"
+          }
+        },
+        "surfaceNormalGradient": {
+          "forDefault": {
+            "type": "LIMITED",
+            "limiterCoefficient": 0.5
+          }
+        }
+      }
+    },
+    "simulationControl": {
+      "endTime": {
+        "value": 1000,
+        "unit": "s"
+      },
+      "deltaT": {
+        "value": 1,
+        "unit": "s"
+      },
+      "writeControl": {
+        "type": "TIME_STEP",
+        "writeInterval": 1000
+      },
+      "numProcessors": -1,
+      "maxRunTime": {
+        "value": 20000,
+        "unit": "s"
+      },
+      "potentialFoamInitialization": false,
+      "decomposeAlgorithm": {
+        "type": "SCOTCH"
+      }
+    },
+    "resultControl": {
+      "forcesMoments": [],
+      "surfaceData": [],
+      "scalarTransport": [],
+      "probePoints": [],
+      "fieldCalculations": []
+    }
+  }
+}

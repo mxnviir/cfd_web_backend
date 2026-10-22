@@ -1,0 +1,5 @@
+node_modules/
+local-samples/
+out-*
+reference-geometry.step
+compare.log

@@ -1,0 +1,12 @@
+{
+  "name": "tunnel-cut",
+  "private": true,
+  "description": "Cutting the car out of the wind tunnel in the browser, as a test before it replaces the geometry service's /prepare",
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../node_modules/vite/bin/vite.js --port 5190 --strictPort"
+  },
+  "dependencies": {
+    "occt-wasm": "5.3.5"
+  }
+}

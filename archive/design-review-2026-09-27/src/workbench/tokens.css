@@ -1,0 +1,519 @@
+/* Workbench design tokens. Build spec sections 2 and 5, retuned to TurboFlow.
+ *
+ * The first version of this file copied SimScale's palette: white chrome, their
+ * blue, their type scale. Shashank rejected that on 11 Sep 2026, and he was
+ * right. Copying a competitor's arrangement is how you learn what a Workbench
+ * needs to contain; copying their skin is how a product stops looking like
+ * itself. What we keep from SimScale is the *layout* (where the tree, the
+ * viewer, the floating panel and the scene tree sit), because that is the map
+ * a user already has in their head. What we do not keep is the paint.
+ *
+ * So every colour below is one of the site's own tokens from src/styles.css.
+ * The Workbench now follows the same theme switch as every other page: dark by
+ * default, light when the reader asks for it, and it changes with the site
+ * rather than staying white while the rest of the product goes dark.
+ *
+ * The copy rules in DESIGN_RULES.md apply here as everywhere: no em dashes in
+ * UI text, no emoji, no "seamless", no placeholder latin.
+ */
+
+.wb,
+.db {
+  /* The site palette, dark. Same hexes as src/styles.css, restated rather than
+     imported: the marketing stylesheet also carries page layout this tool does
+     not want, and importing it for six colours would drag all of it in. */
+  --tf-bg: #141414;
+  --tf-panel: #1e1e1e;
+  --tf-panel-2: #2e2e2e;
+  --tf-rule: #2e2e2e;
+  --tf-rule-strong: #484848;
+  --wb-rule-strong: #484848;
+  --tf-ink: #eeeeee;
+  --tf-ink-2: #aaaaaa;
+  --tf-ink-3: #888888;
+  --tf-accent: #4a90d9;
+  --tf-accent-wash: rgba(74, 144, 217, 0.10);
+  /* White on this blue is 3.5:1, which fails AA at 13px, and every primary
+     button and the account avatar were wearing it. On a dark theme the accent
+     is the light half of the pair, so the ink on top of it has to be the dark
+     half. Tinted rather than black so it still reads as part of the blue. */
+  /* White, like the site.
+     The site's own filled button is white on --accent #4a90d9, which measures
+     3.34:1 and does not pass AA. The Workbench had answered that by flipping
+     the text to near-black, which passes at 5.52 and is the reason its primary
+     buttons never looked like the site's: same blue, opposite text.
+     Neither is necessary. White on #2f6cb0 is 5.39:1 - the site's treatment,
+     on a blue two steps deeper, used only where a button is filled. --accent
+     itself is unchanged, so selection, focus rings and the viewer are as
+     they were. */
+  --tf-on-accent: #ffffff;
+  --tf-accent-fill: #2f6cb0;
+  /* Hover on a filled button goes deeper, never lighter, so the white label
+     only gains contrast. These were color-mix() with a literal #000. */
+  --tf-accent-fill-strong: #275d99;
+  /* Filled danger surfaces. --tf-bad #ff8585 is a light red meant for
+     text on a dark panel; white on it is 2.35:1. Same red, dark enough
+     to carry white at 6.06:1. */
+  --tf-bad-fill: #b3352e;
+  --tf-bad-fill-strong: #932b26;
+  /* Accent text on the 10% accent wash, which the chips use. The accent
+     itself lands at 4.4:1 there, just under AA for 12px. */
+  --tf-accent-ink: #7ab3e0;
+  /* Chart series.
+   *
+   * The plot used to take its six colours from the state tokens: series 2 was
+   * --tf-bad and series 4 was --tf-warn. So on a residual plot one of the six
+   * lines was drawn in the colour that means "error" everywhere else in the
+   * product and another in "warning", and a perfectly converging Uy residual
+   * was painted red. Categorical data needs its own ramp, and red is not in it
+   * for the same reason: in this product red means something.
+   *
+   * Six hues, well separated, none of them the accent or a state colour, and
+   * no two adjacent ones close in lightness - series 1 and series 6 used to be
+   * #4a90d9 and #7ab3e0, two blues that are indistinguishable on a 1.4px line.
+   */
+  --tf-series-1: #6cb6ff;
+  --tf-series-2: #ffa657;
+  --tf-series-3: #56d364;
+  --tf-series-4: #d2a8ff;
+  --tf-series-5: #79dfe1;
+  --tf-series-6: #e3b341;
+
+  /* Results on the car. Two scales, chosen by what the field is:
+   *
+   *   diverging, for pressure: the sign matters (suction against pressure),
+   *   so blue below zero, a neutral grey at zero, orange above. Orange and not
+   *   red, because red means an error everywhere in this product.
+   *   sequential, for magnitudes (speed, k, omega, nut): one hue, light to dark.
+   *
+   * Each arm is a single hue with lightness falling step by step, checked with
+   * the dataviz palette validator. Defined once, not per theme: these paint a
+   * lit 3D car, not the page, so they are the object's colour in both themes.
+   */
+  --tf-div-1: #104281;
+  --tf-div-2: #1c5cab;
+  --tf-div-3: #3987e5;
+  --tf-div-4: #86b6ef;
+  --tf-div-5: #cde2fb;
+  --tf-div-6: #f0efec;
+  --tf-div-7: #ffc9b5;
+  --tf-div-8: #f89c7b;
+  --tf-div-9: #eb6834;
+  --tf-div-10: #b74c20;
+  --tf-div-11: #943b16;
+  --tf-seq-1: #cde2fb;
+  --tf-seq-2: #9ec5f4;
+  --tf-seq-3: #6da7ec;
+  --tf-seq-4: #3987e5;
+  --tf-seq-5: #256abf;
+  --tf-seq-6: #1c5cab;
+  --tf-seq-7: #104281;
+
+  --tf-ok: #5de88a;
+  --tf-warn: #ffc830;
+  --tf-bad: #ff8585;
+  /* The site's own float shadow, same name and same value as src/styles.css.
+     This file had invented --tf-shadow for the same job, which is how a tool
+     ends up with a private vocabulary and drifts away from the product. */
+  --shadow-float: 0 32px 80px rgba(0, 0, 0, 0.6);
+  /* A viewer ground that is neither black nor white. Black hides a dark car,
+     white blows out a pressure legend, and both make every screenshot depend
+     on which theme the team happened to be in. */
+  --tf-viewer: #1a1a1a;
+  --tf-model: #b9bfc7;
+  /* The three colours a face can take that are not "assigned to this
+     boundary". They were literal hexes down in the viewer group, which meant
+     light theme never restated them: a selected face stayed pale pink on a
+     cream ground, where it read as a smudge rather than a selection. */
+  --tf-hover: #7ab3e0;
+  --tf-other: #c58fd8;
+
+  /* chrome, all of it from the tokens above */
+  --wb-topbar-bg: var(--tf-panel);
+  --wb-topbar-ink: var(--tf-ink);
+  --wb-topbar-h: 64px;
+  --wb-panel-bg: var(--tf-panel);
+  --wb-panel-2: var(--tf-panel-2);
+  --wb-rule: var(--tf-rule);
+  --wb-ink: var(--tf-ink);
+  --wb-ink-2: var(--tf-ink-2);
+  --wb-ink-3: var(--tf-ink-3);
+  --wb-accent: var(--tf-accent);
+  --wb-accent-wash: var(--tf-accent-wash);
+  --wb-on-accent: var(--tf-on-accent);
+  --wb-accent-fill: var(--tf-accent-fill);
+  --wb-accent-fill-strong: var(--tf-accent-fill-strong);
+  --wb-bad-fill: var(--tf-bad-fill);
+  --wb-bad-fill-strong: var(--tf-bad-fill-strong);
+  --wb-accent-ink: var(--tf-accent-ink);
+  /* Chart series. Aliased like every other token so a component reads --wb-*
+     and never reaches for a --tf-* directly. */
+  --wb-series-1: var(--tf-series-1);
+  --wb-series-2: var(--tf-series-2);
+  --wb-series-3: var(--tf-series-3);
+  --wb-series-4: var(--tf-series-4);
+  --wb-series-5: var(--tf-series-5);
+  --wb-series-6: var(--tf-series-6);
+  --wb-div-1: var(--tf-div-1);
+  --wb-div-2: var(--tf-div-2);
+  --wb-div-3: var(--tf-div-3);
+  --wb-div-4: var(--tf-div-4);
+  --wb-div-5: var(--tf-div-5);
+  --wb-div-6: var(--tf-div-6);
+  --wb-div-7: var(--tf-div-7);
+  --wb-div-8: var(--tf-div-8);
+  --wb-div-9: var(--tf-div-9);
+  --wb-div-10: var(--tf-div-10);
+  --wb-div-11: var(--tf-div-11);
+  --wb-seq-1: var(--tf-seq-1);
+  --wb-seq-2: var(--tf-seq-2);
+  --wb-seq-3: var(--tf-seq-3);
+  --wb-seq-4: var(--tf-seq-4);
+  --wb-seq-5: var(--tf-seq-5);
+  --wb-seq-6: var(--tf-seq-6);
+  --wb-seq-7: var(--tf-seq-7);
+  --wb-ok: var(--tf-ok);
+  --wb-warn: var(--tf-warn);
+  --wb-bad: var(--tf-bad);
+
+  /* viewer */
+  --wb-viewer-bg: var(--tf-viewer);
+  --wb-model-default: var(--tf-model);
+  --wb-hover: var(--tf-hover);
+  --wb-selected: var(--tf-bad);
+  --wb-assigned: var(--tf-accent);
+  --wb-assigned-other: var(--tf-other);
+  /* The wind tunnel, drawn as glass round the car. TurboFlow's own accent
+     rather than a grey, so that it reads as a thing that was built for you
+     and not as the model failing to load. */
+  --wb-domain: var(--tf-accent);
+
+  /* layout. Unchanged: this is the part of SimScale worth keeping. */
+  --wb-tree-w: 310px;
+  --wb-settings-w: 350px;
+  --wb-scene-w: 295px;
+  --wb-jobs-h: 220px;
+  --wb-gap: 10px;
+
+  /* type: the site's faces, not SimScale's */
+  --wb-font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --wb-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --wb-fs: 13px;
+  --wb-fs-s: 12px;
+  --wb-fs-l: 15px;
+  /* A result figure.
+   *
+   * The workbench scale stopped at 15px, which is right for a dense tool and
+   * wrong for the one number the whole run exists to produce: drag was set at
+   * 12px mono in a table row, the same size as the row label beside it and the
+   * timestamps above it. A reader had to find the answer rather than see it.
+   * Used only by the two headline figures on a finished run. */
+  --wb-fs-xl: 26px;
+  /* One corner radius. Seven different literal radii had accumulated across
+     these three files (1, 2, 3, 4, 6, 9 and 10 px), which is six more
+     decisions than anyone made. The pill is for the on/off switch alone, whose
+     shape is how it is recognised; chips and tags were pills too until 24 Sep
+     2026, which rule 1.2 bans. */
+  --wb-radius: 4px;
+  --wb-radius-pill: 999px;
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--tf-bg);
+  color: var(--wb-ink);
+  font: 400 var(--wb-fs) / 1.45 var(--wb-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+
+/* Light, in the same three states the rest of the site uses: the reader chose
+   light, or their system asks for light and they have not chosen dark. Dark is
+   the default because that is what TurboFlow is. */
+:root[data-theme="light"] .wb,
+:root[data-theme="light"] .db {
+  color-scheme: light;
+  --tf-bg: #f4f2ee;
+  --tf-panel: #fbfaf7;
+  --tf-panel-2: #eae7e0;
+  --tf-rule: #d6d1c7;
+  --tf-rule-strong: #b9b2a4;
+  --wb-rule-strong: #b9b2a4;
+  --tf-ink: #24211d;
+  --tf-ink-2: #4a453d;
+  --tf-ink-3: #6f6961;
+  --tf-accent: #1f5fa8;
+  --tf-accent-wash: rgba(31, 95, 168, 0.09);
+  --tf-on-accent: #ffffff;
+  --tf-accent-ink: #1f5fa8;
+  /* Darkened from #15703f. The run status strip paints this on a 16% wash of
+     itself, and on a light ground that wash moves the background *toward* the
+     text: "Finished" came out at 4.1:1. */
+  --tf-series-1: #0b5fa5;
+  --tf-series-2: #a35200;
+  --tf-series-3: #16704a;
+  --tf-series-4: #6f3fa8;
+  --tf-series-5: #0f6b7d;
+  --tf-series-6: #8a6100;
+  --tf-ok: #0f5c33;
+  --tf-warn: #664700;
+  --tf-bad: #991f19;
+  --shadow-float: 0 24px 60px rgba(40, 34, 24, 0.18);
+  /* Deliberately darker than the site's --ok/--warn/--bad.
+     Those are tuned for the marketing page's surfaces; on the Workbench's own
+     panels they measure 4.15 to 4.50, under AA. Aligning them to the site was
+     tried and the contrast audit failed on six pairs. Divergence with a
+     reason, not drift - see scripts/palette-audit.mjs. */
+  --tf-accent-fill: #1f5fa8;   /* the light accent; white on it is 6.5:1 */
+  --tf-accent-fill-strong: #18568f;
+  --tf-bad-fill: var(--tf-bad);
+  --tf-bad-fill-strong: #7d1914;
+  --tf-viewer: #e8e5df;
+  --tf-model: #9aa0a8;
+  --tf-hover: #3f8fd6;
+  --tf-other: #8a4faf;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .wb,
+  :root:not([data-theme="dark"]) .db {
+    color-scheme: light;
+    --tf-bg: #f4f2ee;
+    --tf-panel: #fbfaf7;
+    --tf-panel-2: #eae7e0;
+    --tf-rule: #d6d1c7;
+    --tf-rule-strong: #b9b2a4;
+    --wb-rule-strong: #b9b2a4;
+    --tf-ink: #24211d;
+    --tf-ink-2: #4a453d;
+    --tf-ink-3: #6f6961;
+    --tf-accent: #1f5fa8;
+    --tf-accent-wash: rgba(31, 95, 168, 0.09);
+    --tf-on-accent: #ffffff;
+    --tf-accent-ink: #1f5fa8;
+    --tf-accent-fill: #1f5fa8;
+    --tf-accent-fill-strong: #18568f;
+    --tf-bad-fill: var(--tf-bad);
+    --tf-bad-fill-strong: #7d1914;
+    --tf-series-1: #0b5fa5;
+  --tf-series-2: #a35200;
+  --tf-series-3: #16704a;
+  --tf-series-4: #6f3fa8;
+  --tf-series-5: #0f6b7d;
+  --tf-series-6: #8a6100;
+  --tf-ok: #0f5c33;
+    --tf-warn: #664700;
+    --tf-bad: #991f19;
+    --shadow-float: 0 24px 60px rgba(40, 34, 24, 0.18);
+    --tf-viewer: #e8e5df;
+    --tf-model: #9aa0a8;
+    --tf-hover: #3f8fd6;
+    --tf-other: #8a4faf;
+  }
+}
+
+.wb *,
+.wb *::before,
+.wb *::after { box-sizing: border-box; }
+
+/* One focus ring for the whole tool.
+ *
+ * Every control without a focus rule of its own fell back to whatever the
+ * browser draws, which is an orange ring in Chrome and a blue one elsewhere.
+ * The single most keyboard-visible thing on the screen was the one part not
+ * wearing TurboFlow's colours, and it changed depending on the browser.
+ *
+ * Placed here, near the top, on purpose: the controls that need a tighter ring
+ * (tree rows, fields) set their own further down and win on source order. */
+.wb :focus-visible,
+.db :focus-visible {
+  outline: 2px solid var(--wb-accent);
+  outline-offset: 2px;
+}
+
+/* Chrome is not prose. Without this, a ctrl-drag in the viewer to pan sweeps a
+   text selection across whatever panel the pointer crosses, and the labels come
+   back highlighted in blue. Anything a person would genuinely want to copy out
+   opts back in below. */
+.wb { user-select: none; -webkit-user-select: none; }
+
+.wb input,
+.wb textarea,
+.wb .wb-eventlog,
+.wb .wb-selectable { user-select: text; -webkit-user-select: text; }
+
+/* :where() so this contributes no specificity of its own.
+ *
+ * Written as `.wb button` it scored higher than `.wb-btn-primary`, and every
+ * filled button in the product came out with dark text on its dark
+ * background: the primary blue, the dark New project button, the blue tick in
+ * the settings panel. The rule is meant as a floor for unstyled buttons, not
+ * something that outranks the button styles below it. */
+.wb :where(button) { font: inherit; color: inherit; }
+
+/* ── buttons ────────────────────────────────────────────────────────────── */
+.wb-btn {
+  height: 32px;
+  padding: 0 12px;
+  /* The site's secondary button: a real border, not the panel rule, so a
+     button reads as a control and not as a box. */
+  border: 1px solid var(--wb-rule-strong);
+  border-radius: var(--wb-radius);
+  background: var(--wb-panel-bg);
+  color: var(--wb-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.wb-btn:hover:not(:disabled) { background: var(--wb-panel-2); }
+.wb-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.wb-btn-primary {
+  background: var(--wb-accent-fill);
+  border-color: var(--wb-accent-fill);
+  color: var(--wb-on-accent);
+}
+
+/* The site's primary hover: the deeper fill of the same blue, per theme. */
+.wb-btn-primary:hover:not(:disabled) {
+  background: var(--wb-accent-fill-strong);
+  border-color: var(--wb-accent-fill-strong);
+}
+
+/* Icon-only. Every one carries an aria-label; see the tooltip rule below. */
+.wb-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--wb-radius);
+  background: none;
+  color: var(--wb-ink-2);
+  cursor: pointer;
+}
+
+.wb-icon-btn:hover { background: var(--wb-panel-2); color: var(--wb-ink); }
+.wb-icon-btn[aria-pressed="true"] { background: var(--wb-accent-wash); color: var(--wb-accent-ink); }
+.wb-icon-btn:disabled { opacity: 0.35; cursor: default; }
+.wb-icon-btn:disabled:hover { background: none; }
+
+/* ── tooltips ───────────────────────────────────────────────────────────── */
+/* 500 ms is the spec's delay. A CSS transition-delay gives it without a timer
+ * per button, and without a tooltip flashing at every pointer that crosses the
+ * toolbar on its way somewhere else. */
+.wb-tip { position: relative; }
+
+.wb-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: var(--wb-radius);
+  background: var(--tf-ink);
+  color: var(--tf-bg);
+  font-size: var(--wb-fs-s);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 90ms linear;
+  transition-delay: 0s;
+  z-index: 60;
+}
+
+.wb-tip:hover::after { opacity: 1; transition-delay: 500ms; }
+.wb-tip-below::after { top: auto; bottom: calc(100% + 6px); }
+
+/* ── fields ─────────────────────────────────────────────────────────────── */
+.wb-field {
+  height: 28px;
+  width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--wb-rule);
+  border-radius: var(--wb-radius);
+  background: var(--wb-panel-bg);
+  color: var(--wb-ink);
+  font: inherit;
+}
+
+/* A 1px border going blue is the weakest indicator that still counts, and on
+   a dense panel of nine fields it is easy to lose. Keyboard users get a real
+   ring; a mouse click keeps the quieter border change. */
+.wb-field:focus { outline: none; border-color: var(--wb-accent); }
+.wb-field:focus-visible { outline: 2px solid var(--wb-accent); outline-offset: -1px; }
+/* ink-2, not ink-3. A disabled field here is not a control waiting to become
+   available, it is a value being shown: "Algorithm: SIMPLE" is disabled
+   because the algorithm follows the time dependency, and it still has to be
+   readable. ink-3 on panel-2 is 3.8:1. */
+.wb-field:disabled { background: var(--wb-panel-2); color: var(--wb-ink-2); }
+
+.wb-select { appearance: none; padding-right: 22px; cursor: pointer; }
+
+/* ── cards ──────────────────────────────────────────────────────────────── */
+.wb-card {
+  background: var(--wb-panel-bg);
+  border: 1px solid var(--wb-rule);
+  border-radius: var(--wb-radius);
+  box-shadow: var(--shadow-float);
+}
+
+.wb-section-head {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: var(--wb-fs-l);
+  color: var(--wb-ink-2);
+  background: var(--wb-panel-2);
+  border-bottom: 1px solid var(--wb-rule);
+}
+
+/* ── scrollbars ─────────────────────────────────────────────────────────── */
+.wb-scroll { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--wb-rule-strong, var(--wb-rule)) transparent; }
+.wb-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.wb-scroll::-webkit-scrollbar-thumb {
+  background: var(--wb-rule-strong, var(--wb-rule));
+  border: 3px solid var(--wb-panel-bg);
+  border-radius: var(--wb-radius);
+}
+
+/* ── loading placeholders ───────────────────────────────────────────────── */
+/* Ground rule 9: the placeholder has the shape of the content, so the layout
+ * does not jump when the data lands. */
+.wb-skel {
+  background: var(--wb-panel-2);
+  animation: wb-skel-pulse 1.3s ease-in-out infinite;
+  border-radius: var(--wb-radius);
+}
+
+/* A pulse, not the sweeping highlight every dashboard has. The sweep is a
+   gradient, and gradients are decoration the rest of the site does without. */
+@keyframes wb-skel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-skel { animation: none; }
+}
+
+.wb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

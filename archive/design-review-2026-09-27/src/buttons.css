@@ -1,0 +1,188 @@
+/* Buttons, all of them, in one file.
+ *
+ * What this replaces: `.btn-primary` in styles.css, `.btn-google` beside it,
+ * and then a per-page button built out of an inline style object every time
+ * somebody needed one that was not primary. The home page alone had two
+ * "secondary" buttons that were a `<button>` with `background:none`, a colour,
+ * an underline and a hand-picked font size - written twice, slightly
+ * differently. That is what the brief means by components assembled
+ * independently: there was no secondary button, so one got invented locally
+ * whenever it was needed.
+ *
+ * Four levels, because a page that needs a fifth has a hierarchy problem
+ * rather than a button problem:
+ *
+ *   primary    one per view. The thing the page is for.
+ *   secondary  a real alternative. Bordered, not filled.
+ *   quiet      a way out, or a link that happens to be a button.
+ *   danger     deletes something. Never the default focus.
+ *
+ * Size is a separate axis from level, so "large secondary" is expressible and
+ * a large button does not have to be the loud one.
+ *
+ * Every level shares one geometry: 1px border, var(--r) corner, the same
+ * height per size, the same focus ring. They differ in fill and in nothing
+ * else, which is what makes them read as one family instead of four.
+ */
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-quiet,
+.btn-danger,
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  font: inherit;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  /* Named properties, not `all`. `transition: all` animates width and padding
+     too, so a hover that changes a border nudges whatever is beside it. */
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-quiet:disabled,
+.btn-danger:disabled,
+.btn-google:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── size ──────────────────────────────────────────────────────────────────
+ * Three, and the middle one is the default, so most buttons name no size at
+ * all. Large is for the one action a landing page is built around; small is
+ * for a toolbar, where height is the scarce resource. */
+.btn-sm { height: 30px; padding: 0 11px; font-size: var(--fs-label); }
+.btn-lg { height: 46px; padding: 0 26px; font-size: var(--fs-body); font-weight: var(--fw-bold); }
+
+/* ── primary ───────────────────────────────────────────────────────────────
+ * Solid accent, and its border is the accent too. It used to be
+ * `1px solid var(--accent-wash)` - the accent at ten per cent, drawn on top of
+ * the accent - which renders as a slightly darker rim and reads as a bug.
+ *
+ * The fill is --accent-fill, not --accent: white on the dark theme's accent is
+ * 3.34:1 and every primary button on the site failed AA until 24 Sep 2026.
+ * The hover goes deeper, not lighter, so the label never loses contrast. */
+.btn-primary {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: var(--fw-medium);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-fill-strong);
+  border-color: var(--accent-fill-strong);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-fill-strong);
+  border-color: var(--accent-fill-strong);
+  /* Pressed is a surface change, not a transform. A button that moves under
+     the cursor is a button that misses the click on a trackpad. */
+  filter: brightness(0.94);
+}
+
+/* ── secondary ─────────────────────────────────────────────────────────────
+ * A border and the page ground. Not a second filled colour: two filled
+ * buttons side by side is two primaries, and the user has to read both to
+ * find out which one the page wants. */
+.btn-secondary {
+  background: var(--panel);
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: var(--ink-4);
+}
+.btn-secondary:active:not(:disabled) {
+  background: var(--inset);
+}
+
+/* ── quiet ─────────────────────────────────────────────────────────────────
+ * No fill, no border until it is wanted. Cancel, "read the guide", a
+ * third option. It keeps the button geometry so it lines up in a row with the
+ * others rather than floating half a pixel off. */
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+  padding: 0 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.btn-quiet:hover:not(:disabled) {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+.btn-quiet:active:not(:disabled) {
+  background: var(--accent-wash);
+}
+
+/* ── danger ────────────────────────────────────────────────────────────────
+ * Red means one thing here and this is it. Bordered rather than filled by
+ * default: a wall of red is a warning the user stops seeing, and a destructive
+ * action should look deliberate rather than urgent. --bad filled is reserved
+ * for a confirmation dialog, where it is the only button of its kind on
+ * screen. */
+.btn-danger {
+  background: transparent;
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--bad);
+  color: var(--bg);
+}
+
+/* ── icon only ─────────────────────────────────────────────────────────────
+ * Square, and it must carry an aria-label or a title. An icon button with no
+ * accessible name is a button a screen reader announces as "button". */
+.btn-icon {
+  width: 36px;
+  padding: 0;
+}
+.btn-icon.btn-sm { width: 30px; }
+.btn-icon.btn-lg { width: 46px; }
+
+/* ── loading ───────────────────────────────────────────────────────────────
+ * The label stays, so the button keeps its width and the row does not reflow
+ * at the exact moment somebody clicked it. */
+.btn[data-loading="true"] {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+/* ── Google ────────────────────────────────────────────────────────────────
+ * Keeps Google's white because their brand guidelines ask for it, and a
+ * themed copy of somebody else's sign-in button is worse than an honest one.
+ * What it does not keep is the #444 border it used to have on a white face,
+ * which read as a smudge in both themes. */
+.btn-google {
+  background: #ffffff;
+  border-color: var(--rule-strong);
+  color: #1f1f1f;
+  font-weight: var(--fw-medium);
+}
+.btn-google:hover:not(:disabled) {
+  background: #f1f1f1;
+  border-color: var(--accent);
+}
+.btn-google:active:not(:disabled) { background: #e8e8e8; }
+
+/* Full width, for a button that is the whole of a narrow column: a dialog
+   footer on a phone, a sidebar action. */
+.btn-block { width: 100%; }

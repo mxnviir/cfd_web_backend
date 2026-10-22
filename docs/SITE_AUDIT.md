@@ -1,0 +1,174 @@
+# Site hygiene audit
+
+15 September 2026. Every line below was measured against the deployed
+`turboflow-test` site, before and after. Nothing here is read off the source and
+assumed.
+
+The prompt was a list of nineteen things that make a website bad. Six of them
+were true here. Most of the rest were already handled, and saying which is the
+point of writing this down — otherwise someone checks the same list again next
+quarter.
+
+---
+
+## Already fine before this pass
+
+| Claim | What was actually there |
+|---|---|
+| Browser tab says "Vite" or "React" | 15 distinct, written titles |
+| Same page title everywhere | 15 unique titles |
+| No meta description | Unique description on all 15 pages |
+| No OG image | `og:image` 1200×630 with `og:image:alt`, plus `twitter:card` |
+| No canonical tag | Unique canonical on every indexable page |
+| No favicon | SVG + 32px + 192px + apple-touch |
+| No language attribute | `<html lang="en">` on all 15 |
+| No 404 page | `/anything` returns **HTTP 404** with the branded page, not a 200 |
+| Source maps in production | `sourcemap: false`; **0** `.map` files and **0** `sourceMappingURL` in `dist/` |
+| Console full of errors | **0** console messages, **0** failed requests across 14 pages |
+| Enormous JavaScript bundles | **57 kB brotli** blocking on the home page (see below) |
+| No custom domain | Test deployment; production is `turboflow.cloud` |
+
+### On bundle size, since it was asserted
+
+Measured from the server with `Accept-Encoding: br`:
+
+```
+ 38772 B  vendor-react
+  7050 B  Shell.css
+  5629 B  Shell.js
+  3201 B  index.js
+  3947 B  everything else
+───────
+ 58599 B  blocking
+ 98786 B  vendor-firebase   (dynamic import, after first paint)
+```
+
+57 kB blocking is lean for a React app. The honest criticism is the second
+line: the Firebase client is 63% of the page's total weight and every marketing
+page pulls it to answer one question, "is anyone signed in?". It does not block
+first paint, so it has not been changed here, but it is the one real weight
+problem on the site.
+
+---
+
+## The six that were true, and are now fixed
+
+### 1. View source was empty
+
+Every page shipped `<body><div id="root"></div></body>`. Measured across all 14:
+**0 characters of body text**. The pricing, the terms, the setup guide — none of
+it existed for anything that does not run JavaScript. Google renders JS; most AI
+crawlers and non-browser readers do not.
+
+`scripts/prerender.mjs` now renders each public page at build time and writes the
+markup into its HTML file. Measured with `curl`, no JavaScript involved:
+
+| | before | after |
+|---|---|---|
+| `/` | 0 | 3,392 |
+| `/privacy-policy` | 0 | 4,726 |
+| `/terms` | 0 | 3,285 |
+| `/sponsorship-policy` | 0 | 2,891 |
+| `/docs` | 0 | 2,277 |
+| 11 pages total | 0 | 23,489 characters |
+
+The client still uses `createRoot`, not `hydrateRoot`. That is deliberate and is
+explained at the top of `scripts/prerender.mjs`: the Shell picks its initial
+sidebar state from `window.matchMedia("(max-width: 900px)")`, which the server
+cannot know, so hydration would genuinely mismatch on any window under 900px and
+print an error on every narrow screen. This markup is a crawler-and-no-JS view,
+not a hydration target.
+
+The four signed-in screens are deliberately **not** prerendered. Their content
+comes from a Firestore read that needs a session, so prerendering them would bake
+in an empty panel. They are `noindex` instead.
+
+### 2. No `h1` on 10 of 14 pages
+
+Measured in the rendered DOM: `/docs`, `/simulations`, `/billing`,
+`/sponsorship`, `/mentorship`, `/modelling`, `/privacy-policy`, `/terms`,
+`/refund-policy` and `/sponsorship-policy` had **no `h1` at all** and began their
+outline at `h2`. (No page had *more* than one, so the other half of that
+complaint did not apply.)
+
+Page titles are now `h1` and section headings `h2`. Tailwind's preflight resets
+every heading to `font-size: inherit; font-weight: inherit` and all the sizing
+comes from utility classes, so this is invisible on screen — confirmed by
+screenshot.
+
+Promoting the titles first opened an `h1 → h3` gap on nine pages, which the
+measurement caught. All 14 pages now read: one `h1`, outline starts at level 1,
+**zero level skips**.
+
+### 3. No accessible-name handling on icons
+
+**0** of the 14–23 SVG icons on every page carried `aria-hidden` — except
+`/dashboard`, which had 15 of 15, so the codebase already knew the rule and the
+site half had not followed it.
+
+`src/lib/icons.js` now wraps the whole icon set once rather than editing fourteen
+literals, and the eight SVGs written inline in components were done individually.
+**Every SVG on every page is now hidden from assistive technology**, and the
+count of controls with no accessible name did not go up — checked before and
+after, because hiding an icon inside an icon-only button would have removed its
+name.
+
+### 4. No robots.txt
+
+`/robots.txt` returned the 404 page. There is now one, generated by
+`scripts/seo.mjs`. It allows everything including AI crawlers — named explicitly
+so the answer is written down rather than inferred from silence — and disallows
+only the four signed-in screens.
+
+### 5. No sitemap.xml
+
+`/sitemap.xml` returned the 404 page. There is now one listing the 10 indexable
+pages; all 10 verified to return 200.
+
+No `<lastmod>`. It is optional, search engines discount it when it is wrong, and
+there is no honest source for it here — this is not a git checkout, so a file's
+mtime is when it was last copied. An invented date is worse than none.
+
+The generator checks its page table against `vite.config.js` and **fails the
+build** if they disagree, because a page added there and forgotten here is the
+normal way a sitemap goes stale.
+
+### 6. No structured data
+
+None anywhere. The home page now carries `Organization` and `WebSite` JSON-LD.
+Everything in it is checkable against a page that is already published: the name,
+the logo file, the Instagram account in the footer, the support address on the
+contact pages.
+
+Deliberately absent: `Product`/`Offer` for the credit packs, which would need
+prices kept in step with the billing page; `FAQPage`, because there is no FAQ;
+`HowTo` for the setup guide, which Google stopped showing in 2023.
+
+---
+
+## A false positive in our own tooling
+
+`scripts/csp-audit.mjs` flagged the new JSON-LD as an inline script needing a
+hash in `script-src`. It was wrong, and it was worth proving rather than
+assuming: appending both a JSON-LD block and a real inline script to the live
+page produced **exactly one** `securitypolicyviolation` — `script-src-elem`,
+naming the hash of the real script — while the JSON-LD raised nothing and stayed
+in the DOM.
+
+A `<script>` whose type is not a JavaScript MIME type is a data block; the parser
+never executes it, so `script-src` is never consulted. The audit now skips them.
+Had it been "fixed" the other way, the policy would have been pinned to a block
+that never runs, and every later edit to the structured data would have looked
+like a CSP failure.
+
+---
+
+## Found, not fixed
+
+Both are real and both predate this pass. Neither was on the list.
+
+- **Form inputs with no label.** `/lap-calculator` has 4 and `/billing` has 5
+  inputs whose only description is a `placeholder`, which is not an accessible
+  name and disappears on focus.
+- **One genuinely empty control.** `/billing` renders a
+  `<button type="button"></button>` with no content and no label.

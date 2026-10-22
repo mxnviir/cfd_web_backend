@@ -1,0 +1,222 @@
+/* The garage, 25 Sep 2026.
+ *
+ * One column: a heading, three tabs, and a row per group with its best
+ * result. The Workbench's tokens throughout, because the two are one tool.
+ * Rows are told apart by a hairline rule and a hover tone, not by boxes
+ * (DESIGN_RULES.md 1.2: no border-plus-lift cards, no card grids).
+ */
+
+.db {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: var(--wb-topbar-h) minmax(0, 1fr);
+  background: var(--wb-panel-bg);
+  color: var(--wb-ink);
+  font: 400 var(--wb-fs) / 1.45 var(--wb-font);
+}
+
+/* ── top bar ────────────────────────────────────────────────────────────── */
+.db-brand-text { font-weight: 600; font-size: var(--wb-fs-l); }
+.db-search { position: relative; display: inline-flex; align-items: center; margin-left: 18px; }
+.db-search .wb-field { width: 280px; padding-right: 28px; }
+.db-search svg { position: absolute; right: 9px; color: var(--wb-ink-3); pointer-events: none; }
+
+.wb-credits { color: var(--wb-ink-2); text-decoration: none; white-space: nowrap; }
+.wb-credits:hover { color: var(--wb-ink); text-decoration: underline; }
+.wb-credits-n { color: var(--wb-ink); font-family: var(--wb-mono); font-variant-numeric: tabular-nums; }
+.wb-user-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── the page ───────────────────────────────────────────────────────────── */
+.db-garage { min-width: 0; overflow: auto; padding: 22px 32px 48px; }
+
+.db-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  border-bottom: 1px solid var(--wb-rule);
+}
+.db-title { margin: 0 0 10px; font-size: var(--wb-fs-xl); font-weight: 600; line-height: 1.2; }
+
+/* The three views, as tabs on the heading's rule: the bar under the open
+   one is state, like the Workbench's step bar. */
+.db-tabs { display: flex; flex: 1; }
+.db-tab {
+  padding: 8px 14px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--wb-ink-3);
+  cursor: pointer;
+}
+.db-tab:hover { color: var(--wb-ink); }
+.db-tab[aria-current="page"] { color: var(--wb-ink); font-weight: 600; border-bottom-color: var(--wb-ink); }
+
+.db-sort { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.db-sort .wb-field { width: 150px; }
+
+.db-banner { position: static; transform: none; margin: 14px 0 0; }
+
+/* Delete and other one-way actions. Red, so the confirm button in a delete
+ * dialog does not look like the safe choice. */
+.db-btn-danger {
+  background: var(--wb-bad-fill);
+  border-color: var(--wb-bad-fill);
+  color: var(--wb-on-accent);
+}
+
+.db-btn-danger:hover:not(:disabled) { background: var(--wb-bad-fill-strong); border-color: var(--wb-bad-fill-strong); }
+
+/* ── the rows ───────────────────────────────────────────────────────────── */
+.db-rows { margin: 0; padding: 0; list-style: none; }
+.db-row { position: relative; border-bottom: 1px solid var(--wb-rule); }
+.db-row-open {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 190px 190px;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 56px 14px 0;
+  color: inherit;
+  text-decoration: none;
+}
+.db-row-open:hover { background: var(--wb-panel-2); }
+
+.db-thumb {
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 90px;
+  overflow: hidden;
+  background: var(--wb-viewer-bg);
+  color: var(--wb-ink-2);
+  font-size: var(--wb-fs-s);
+}
+.db-thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+.db-row-what { display: grid; gap: 2px; min-width: 0; }
+.db-row-name { font-size: var(--wb-fs-l); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-row-desc,
+.db-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-row-desc { color: var(--wb-ink-2); }
+.db-row-meta { color: var(--wb-ink-3); font-size: var(--wb-fs-s); }
+
+.db-row-best,
+.db-row-live { display: grid; gap: 1px; min-width: 0; }
+.db-row-label,
+.db-row-sub,
+.db-row-none { color: var(--wb-ink-3); font-size: var(--wb-fs-s); }
+.db-row-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-row-fig {
+  font-family: var(--wb-mono);
+  font-size: var(--wb-fs-xl);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.db-row-unit { margin-left: 5px; font-size: var(--wb-fs); color: var(--wb-ink-3); }
+
+/* A run in progress: its name, a bar and the stage. The bar is the accent
+   because the run is live; nothing else on the row is. */
+.db-row-live-name { font-weight: 600; }
+.db-row-progress { height: 4px; background: var(--wb-panel-2); }
+.db-row-progress > span { display: block; height: 100%; background: var(--wb-accent); }
+
+.db-row-menu { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); }
+
+.db-row-skel { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding: 14px 0; }
+.db-row-skel .db-thumb { height: 90px; }
+.db-skel-line { display: block; height: 14px; width: 55%; margin-bottom: 8px; }
+.db-skel-short { width: 30%; }
+
+.db-empty { max-width: 64ch; margin: 22px 0; color: var(--wb-ink-2); }
+
+.db-tag { padding: 1px 7px; border-radius: var(--wb-radius); background: var(--wb-panel-2); font-size: var(--wb-fs-s); }
+
+/* ── dialogs ────────────────────────────────────────────────────────────── */
+.db-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 41, 51, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.db-modal {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--wb-panel-bg);
+  border-radius: var(--wb-radius);
+  box-shadow: var(--shadow-float);
+}
+
+.db-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--wb-rule);
+}
+
+.db-modal-head h2 { flex: 1; margin: 0; font-size: 20px; font-weight: 600; }
+.db-modal-body { padding: 14px 16px; overflow: auto; }
+.db-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--wb-rule);
+}
+
+.db-field { margin-bottom: 14px; }
+.db-field > label { display: block; margin-bottom: 4px; color: var(--wb-ink-2); }
+.db-field textarea.wb-field { height: auto; min-height: 76px; padding: 6px 8px; resize: vertical; }
+.db-hint { color: var(--wb-ink-3); font-size: var(--wb-fs-s); margin-top: 3px; }
+.db-error { color: var(--wb-bad); font-size: var(--wb-fs-s); margin-top: 3px; }
+
+.db-radio-row { display: flex; gap: 16px; }
+.db-radio { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* The input inside has no border of its own and its outline is suppressed, so
+   the box it sits in is what has to show the focus. Without this, tabbing into
+   the tag field changed nothing on screen at all. */
+.db-taginput { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px solid var(--wb-rule); border-radius: var(--wb-radius); padding: 3px; }
+.db-taginput:focus-within { border-color: var(--wb-accent); outline: 2px solid var(--wb-accent); outline-offset: -2px; }
+.db-taginput input { border: 0; outline: none; flex: 1; min-width: 110px; height: 22px; font: inherit; color: inherit; background: none; }
+.db-taginput .db-tag { display: inline-flex; align-items: center; gap: 4px; }
+.db-taginput .db-tag button { border: 0; background: none; cursor: pointer; line-height: 0; color: var(--wb-ink-2); }
+
+.db-adv { border: 0; padding: 0; margin: 0 0 10px; }
+.db-adv summary { cursor: pointer; color: var(--wb-ink); text-decoration: underline; margin-bottom: 10px; }
+
+.db-share-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.db-share-list { margin-top: 14px; border-top: 1px solid var(--wb-rule); padding-top: 10px; }
+
+/* ── narrow ─────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .db-row-open { grid-template-columns: 128px minmax(0, 1fr) 170px; }
+  .db-thumb { width: 128px; height: 72px; }
+  .db-row-live { display: none; }
+}
+
+@media (max-width: 780px) {
+  /* The mark and the avatar carry the brand and the account; the search box
+     takes whatever is left. */
+  .wb-topbar { gap: 8px; padding: 0 12px; }
+  .db-brand-text, .wb-credits, .wb-user-name { display: none; }
+  .db-search { flex: 1 1 auto; min-width: 0; margin-left: 0; }
+  .db-search .wb-field { width: 100%; min-width: 0; }
+  .db-garage { padding: 14px; }
+  .db-head { flex-wrap: wrap; gap: 0 12px; }
+  .db-title { width: 100%; }
+  .db-tabs { overflow-x: auto; }
+  .db-tab { white-space: nowrap; }
+  .db-sort { display: none; }
+  .db-row-open { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding-right: 44px; }
+  .db-thumb { width: 96px; height: 54px; }
+  .db-row-best { grid-column: 2; }
+}
