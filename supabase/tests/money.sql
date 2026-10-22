@@ -382,6 +382,12 @@ select pg_temp.eq('the poller finishing a cancel moves no money',
 select pg_temp.eq('...and ends the run cancelled',
   (select status from public.runs where id = 'run_jobWho'), 'cancelled');
 
+select pg_temp.charged_job('jobLeased', 'uploading_geometry');
+update public.jobs set lease_until = now() + interval '5 minutes' where id = 'jobLeased';
+select private.cancel_run('run_jobLeased', 'aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.eq('a cancel drops the lease, so the next POLL tick winds the run down',
+  (select lease_until is null and next_poll_at <= now() from public.jobs where id = 'jobLeased'), true);
+
 -- ── failures ───────────────────────────────────────────────────────────────
 select pg_temp.charged_job('jobFailEarly', 'processing');
 select pg_temp.eq('a run that fails before solving gives the credits back',

@@ -1,14 +1,14 @@
 // The browser's pricing copy must agree with the server's, exactly.
 //
 // Build spec section 15 step 1. src/lib/pricing.js quotes the price on the
-// Queue button; functions/src/lib/pricing.ts charges the account. If they ever
+// Queue button; supabase/functions/_shared/logic/pricing.ts charges the account. If they ever
 // disagree the user is told one number and billed another, and nobody finds
 // out until a support message. So both are run against the same inputs here,
 // including the ones that break naive implementations: strings, nulls, NaN,
 // values past the clamps, and the exact refinement levels whose fineness the
 // old backend used to interpolate wrongly.
 //
-// Run: node tests/test_pricing.mjs   (after npm run build:functions)
+// Run: node tests/test_pricing.mjs
 
 import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
@@ -20,13 +20,7 @@ const root = join(here, "..");
 
 const client = await import(pathToFileURL(join(root, "src/lib/pricing.js")).href);
 
-const serverPath = join(root, "functions/lib/lib/pricing.js");
-if (!existsSync(serverPath)) {
-  console.error(`Compiled server pricing not found at ${serverPath}.`);
-  console.error("Run: npm run build:functions");
-  process.exit(1);
-}
-const server = await import(pathToFileURL(serverPath).href);
+const server = await import(pathToFileURL(join(root, "supabase/functions/_shared/logic/pricing.ts")).href);
 
 let checks = 0;
 const failures = [];
@@ -130,11 +124,11 @@ for (const user of USERS) {
 // ── fineness back to a refinement level ────────────────────────────────────
 // The Queue dialog quotes on this and queueRun charges on it. It was the one
 // step of the price each side worked out separately with nothing comparing
-// them, because the server's copy lives in jobs/queueRun.ts rather than in
-// lib/pricing.ts. Compared here against the server's own function.
+// them, because the server's copy lives in logic/setup.ts rather than in
+// logic/pricing.ts. Compared here against the server's own function.
 {
   const serverQueue = await import(
-    pathToFileURL(join(root, "functions/lib/jobs/queueRun.js")).href);
+    pathToFileURL(join(root, "supabase/functions/_shared/logic/setup.ts")).href);
   const values = [
     -5, 0, 0.5, 1, 3, 4, 8, 8.9, 9, 9.0000000001, 9.1, 9.2, 9.3, 9.5,
     9.6, 9.7, 9.8, 9.9, 10, 10.0000001, 11, 99,

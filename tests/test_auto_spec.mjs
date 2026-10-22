@@ -11,7 +11,7 @@
 // server validates with and the real validateSetup the queue refuses on, on a
 // tunnel shaped like the one /prepare actually returns.
 //
-// Run: node tests/test_auto_spec.mjs   (after npm run build:functions)
+// Run: node tests/test_auto_spec.mjs
 import { pathToFileURL } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -23,7 +23,7 @@ const root = join(here, "..");
 const need = (p) => {
   const full = join(root, p);
   if (!existsSync(full)) {
-    console.error(`\n  ${p} not found. Run: npm run build:functions`);
+    console.error(`\n  ${p} not found.`);
     process.exit(1);
   }
   return pathToFileURL(full).href;
@@ -32,10 +32,10 @@ const need = (p) => {
 const {
   autoSpec, boundaryConditions, resultControls, meshSpecFor, wheelSpin,
   AIR, FLOW_DIRECTION,
-} = await import(need("functions/lib/simulations/autoSpec.js"));
-const { incompressibleModel } = await import(need("functions/lib/simulations/spec.js"));
-const { validateSetup } = await import(need("functions/lib/simulations/validate.js"));
-const { momentCentre } = await import(need("functions/lib/geometry/prepareDomain.js"));
+} = await import(need("supabase/functions/_shared/logic/autoSpec.ts"));
+const { incompressibleModel } = await import(need("supabase/functions/_shared/logic/spec.ts"));
+const { validateSetup } = await import(need("supabase/functions/_shared/logic/validate.ts"));
+const { momentCentre } = await import(need("supabase/functions/_shared/logic/setup.ts"));
 
 let checks = 0;
 const failures = [];

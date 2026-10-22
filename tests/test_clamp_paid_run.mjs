@@ -18,7 +18,7 @@
 // one autoSpec builds, has to come through untouched. A clamp that quietly
 // coarsens every real run would be a worse bug than the one it fixes.
 //
-// Run: node tests/test_clamp_paid_run.mjs   (after npm run build:functions)
+// Run: node tests/test_clamp_paid_run.mjs
 import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -28,17 +28,17 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const need = (p) => {
   const full = join(root, p);
   if (!existsSync(full)) {
-    console.error(`\n  ${p} not found. Run: npm run build:functions`);
+    console.error(`\n  ${p} not found.`);
     process.exit(1);
   }
   return pathToFileURL(full).href;
 };
 
 const { clampToPaidRun, finenessCeiling } =
-  await import(need("functions/lib/simulations/clamp.js"));
-const { clampRunParams, FINENESS } = await import(need("functions/lib/lib/pricing.js"));
-const { autoSpec, meshSpecFor } = await import(need("functions/lib/simulations/autoSpec.js"));
-const { DEFAULT_MESH_SPEC } = await import(need("functions/lib/simulations/index.js"));
+  await import(need("supabase/functions/_shared/logic/clamp.ts"));
+const { clampRunParams, FINENESS } = await import(need("supabase/functions/_shared/logic/pricing.ts"));
+const { autoSpec, meshSpecFor } = await import(need("supabase/functions/_shared/logic/autoSpec.ts"));
+const { DEFAULT_MESH_SPEC } = await import(need("supabase/functions/_shared/logic/setup.ts"));
 
 let checks = 0;
 const failures = [];

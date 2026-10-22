@@ -26,20 +26,24 @@ function walk(dir, ext, out = []) {
 // ── every key anything writes onto a document ──────────────────────────────
 const written = new Set();
 const sources = [
-  "services/simscale-job/simscale_job.py",
-  "services/simscale-job/spec_mode.py",
-  ...walk("functions/src", ".ts"),
+  ...walk("supabase/functions", ".ts"),
+  ...walk("supabase/migrations", ".sql"),
 ];
 for (const f of sources) {
   const src = read(f);
   for (const m of src.matchAll(/["']([a-z][a-z0-9_]*)(?:\.[a-z_]+)?["']\s*:/gi)) written.add(m[1]);
   for (const m of src.matchAll(/^\s{2,}([a-z][a-zA-Z0-9_]*)\s*:/gm)) written.add(m[1]);
   for (const m of src.matchAll(/patch\[["']([a-z0-9_]+)["']\]/gi)) written.add(m[1]);
+  // SQL: columns assigned in an UPDATE, and the column lists of an INSERT.
+  for (const m of src.matchAll(/(?:\bset|,)\s+([a-z_][a-z0-9_]*)\s*=(?!=)/gi)) written.add(m[1]);
+  for (const m of src.matchAll(/insert into public\.\w+\s*\(([^)]*)\)/gi)) {
+    for (const col of m[1].split(",")) written.add(col.trim());
+  }
 }
 
 // What the client is actually handed.
 //
-// lib/firebase.js converts top-level keys snake_case -> camelCase on every
+// lib/backend.js converts top-level keys snake_case -> camelCase on every
 // read, so the worker's `results_glb_path` reaches the Workbench as
 // `resultsGlbPath`. The first version of this test compared the UI's reads
 // against the *writer's* spelling, so `run.results_glb_path` passed and
@@ -52,7 +56,13 @@ const toCamel = (k) => ({ drag_n: "drag_N", lift_n: "lift_N" })[k]
   ?? k.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 // Set by Firestore itself or by the client, never named in a writer literal.
-const ALLOW = new Set(["id", "data", "exists", "ref", "length", "toMillis"]);
+const ALLOW = new Set(["id", "data", "exists", "ref", "length", "toMillis",
+  // Column defaults: stamped by Postgres, never named by a writer.
+  "createdAt",
+  // The Cloud Run worker's Python traceback. The edge pipeline's failures are
+  // already sentences (`error`), so nothing writes this; the panel shows it
+  // only when present.
+  "errorDetail"]);
 
 // Every writer name as the Workbench will see it, and only that. Accepting
 // the snake_case spelling too would let `run.results_glb_path` pass, and the
