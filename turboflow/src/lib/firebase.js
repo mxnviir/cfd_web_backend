@@ -15,7 +15,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
   getAuth, connectAuthEmulator, onAuthStateChanged, signInWithPopup,
-  signInWithRedirect, signOut as fbSignOut, GoogleAuthProvider,
+  signInWithRedirect, signOut as fbSignOut, signInAnonymously, GoogleAuthProvider,
 } from "firebase/auth";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs,
@@ -156,11 +156,15 @@ export const auth = {
   onAuthStateChanged: (cb) => onAuthStateChanged(rawAuth, cb),
   signInWithPopup: (provider) => signInWithPopup(rawAuth, provider),
   signInWithRedirect: (provider) => signInWithRedirect(rawAuth, provider),
+  signInAnonymously: () => signInAnonymously(rawAuth),
   signOut: () => fbSignOut(rawAuth),
 
   // Google is the only sign-in. Email and password (build spec 3.1) were here
   // and were removed on 24 Sep 2026; see components/AuthModal.jsx.
 };
+
+/** True only on localhost, where every Firebase call goes to the emulators. */
+export const isLocal = LOCAL;
 
 // ── callables ───────────────────────────────────────────────────────────────
 export const functions = {

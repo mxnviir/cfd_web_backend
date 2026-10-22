@@ -8,12 +8,26 @@
 // running the moment the worker says so, which is the difference between the
 // Workbench feeling alive and feeling like a page you have to refresh.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { db, auth } from "../lib/firebase";
+import { db, auth, isLocal } from "../lib/firebase";
 
 /** Who is signed in, or null. `undefined` while Firebase is still deciding. */
 export function useUser() {
   const [user, setUser] = useState(undefined);
-  useEffect(() => auth.onAuthStateChanged(setUser), []);
+  useEffect(() => {
+    let stopped = false;
+    const off = auth.onAuthStateChanged(async (u) => {
+      // Local testing only: a localhost page talks to the emulators, and the
+      // Workbench bounces to sign-in without a user. The auth emulator takes
+      // anonymous sign-in with no project setup, so testing does not have to
+      // click through Google. Non-localhost keeps the real sign-in flow.
+      if (!u && isLocal) {
+        try { await auth.signInAnonymously(); } catch { if (!stopped) setUser(null); }
+        return;
+      }
+      if (!stopped) setUser(u);
+    });
+    return () => { stopped = true; off(); };
+  }, []);
   return user;
 }
 
