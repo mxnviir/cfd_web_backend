@@ -176,66 +176,12 @@ The geometry service keeps its own counters in the same collection: `prepare`
 | Clamp: boundary layers | 10 | same |
 | Car size accepted | 0.10 to 0.60 m long | `main.py` `CAR_MIN_M`, `CAR_MAX_M` |
 
-## The geometry service (`services/tessellate/main.py`)
+## The geometry service — deleted
 
-**Callers.** Either a person with a Firebase ID token, or a trusted service
-account's Google token plus `on_behalf_of: uid`. Every path is checked against
-`users/{uid}/` (`owned`). Nothing is written over an existing destination.
-
-### `/inspect`
-
-Input: `raw_path`, `version`, `format`, `input_unit`, `import_options`,
-`on_behalf_of`. Steps: download (50 MB cap), import (cached by path and
-generation, so `/prepare` gets it free), triangulate once, measure, turn the car
-to lie along x with axles along y (quarter turns about z only), detect the unit
-(the one of m, cm or mm that makes the car 0.1 to 0.6 m long; ambiguous is an
-error), survey every face once (type, area, centre, normal, cylinder radius and
-axis), find wheels, measure the frontal area by rasterising the shadow, count
-slivers and say where they are, match STEP entity ids, write the files. Output:
-`paths` (glb, faces, solids, step, thumb), `bbox`, `wheels`, a proposed
-`domain`, `car_axis`, `frontal_area_m2`, `frontal_area_half_m2`, `rotated_deg`,
-`unit`, counts, `slivers`.
-
-### `/prepare`
-
-Input: `step_path`, `dest_prefix`, `version`, `symmetry`, the four offsets,
-wheel radii and tolerance, optional picked `wheels`, `unit`, `on_behalf_of`.
-Steps:
-1. Refuse an existing destination (409).
-2. Import, mesh, orient, detect scale; find or take the wheels.
-3. **Mirror plane** from the triangles: a half model has a flat face at one end
-   of its width and a curved flank at the other; comparing the two ends tells
-   `half`, `centre` or `ambiguous`. A half model in a full-width tunnel is
-   refused.
-4. **Tunnel**: inlet at max x plus upstream, outlet at min x minus downstream
-   (the wind blows along -x), floor 0.1 mm under the lowest wheel, top and side
-   offsets; for a half tunnel the mirror wall is nudged off the plane.
-5. **Frontal area** over the tunnel's own width (half for a half tunnel).
-6. **Cut** (`cut_car_out`): the whole car as one tool; if not good enough, the
-   bodies fused first; if not, body by body (sound bodies first). Every result
-   must remove a believable amount: not nothing, not more than 1.5 times the
-   expected volume, and per body not more than the body. Tried at up to four
-   mirror-wall offsets (0, 20 µm, 100 µm, 2 µm, order depends on half or whole);
-   the first that removes at least two thirds of the expected volume with no
-   part missing wins.
-7. **Checks**: the region removed at least 5% and at most 150% of the car; OCC
-   validity (refused only when a faulty face can be named and located on the
-   car); sealed voids smaller than 1e-12 m³ refused as slivers.
-8. **Export** the flow region as STEP, **label** every face from the STEP text
-   (inlet, outlet, top, side, symmetry, ground by position and span; cylinders
-   matched to wheels become rotating walls with their wheel's radius and
-   centre; everything else car), also label from the triangulated faces,
-   compute adjacency and per-face data, write model, faces, solids, STEP and
-   `entity_labels.csv`.
-
-Output: paths, `labels`, `label_counts`, `missing_labels`,
-`unresolvable_faces`, `wheels`, `car_wheels`, `domain`, `symmetry_plane_y`,
-`symmetry_kind`, `frontal_area_m2`, `reference_length_m`, `slivers`, counts.
-
-### `/measure`, `/transform`, `/tessellate`, `/health`
-
-See 04-CODE-MAP.md. `/transform` (translate, scale, rotate, mirror) is built and
-tested but no current screen uses it.
+`services/tessellate/main.py` (the `turboflow-tessellate` Cloud Run service)
+was removed on 22 Oct 2026. Geometry — inspection, tunnel building, the cut,
+the STEP export — runs in the visitor's browser now: `src/workbench/geometry/`
+(04-CODE-MAP documents it). The full endpoint reference lives in git history.
 
 ## The SimScale worker (`services/simscale-job/`)
 

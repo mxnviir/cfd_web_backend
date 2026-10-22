@@ -138,6 +138,5 @@ plan to replace them is in [09-NO-CLOUD-PLAN.md](09-NO-CLOUD-PLAN.md).
 | `C:\Users\shash\Desktop\cfd_web_backend\turboflow\` | **The repo.** Site, functions, services, tests, docs. Git, no remote. |
 | `C:\Users\shash\Desktop\cfd_web_backend\DESIGN_RULES.md` | The design rules every page must follow. Outside the repo on purpose. |
 | `C:\Users\shash\Desktop\cfd_web_backend\backups\turboflow-7b3ca-2026-09-24\` | Full backup of production. **Contains live secrets. Never upload, attach or commit it.** |
-| `C:\Users\shash\Desktop\cfd_web_backend\cfd_web_frontend\` | The original production app as it was in August (compiled single page, old functions). Not git. Its `functions/.env` was moved to `env/secrets/production.env` in this repo. |
-| `C:\Users\shash\Desktop\cfd_web_backend\fusion_addin_test\TurboFlow_CFD\` | The Fusion add-in stamped for turboflow-test (27 Sep). |
+| `cfd_web_frontend/`, `fusion_addin_test/` | Deleted 22 Oct 2026. The compiled classic site lives in `src/site/`, the old functions source in the production backup (`backups/`, also in the private turboflow-backup repo), and the old live secrets in `env/secrets/production.env`. |
 | `C:\Users\shash\Downloads\car(17.3).step`, `withoutgap.step`, `finalised combined car.step`, `step_render.step` | Real customer and test cars used for testing. Do not commit them. |

@@ -137,9 +137,6 @@ without the owner's explicit go.**
   `gcloud run jobs update simscale-job --image gcr.io/turboflow-test/simscale-job:vNN --region us-central1 --project turboflow-test`.
   The image must contain every module the entry point imports (`spec_mode.py`
   was once missing).
-- Geometry service: same pattern for `services/tessellate` and
-  `turboflow-tessellate`, deployed private (`--no-allow-unauthenticated`), as
-  `tf-geometry`, **with `--min-instances 0`**.
 - Check what is actually deployed before trusting a live test (`gcloud run jobs
   describe`, `gcloud run services describe`): the deployed backend has lagged
   the repo before.

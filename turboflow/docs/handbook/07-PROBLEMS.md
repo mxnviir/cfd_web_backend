@@ -15,7 +15,7 @@ checked from here are marked **UNVERIFIED**.
   turboflow-test to get a refund. Which ones are gone, and whether billing is
   still on, is **UNVERIFIED**.
 - **If the services were deleted:** the code to rebuild them is all in the repo
-  (`functions/src`, `services/tessellate`, `services/simscale-job`), and the
+  (`functions/src`, `services/simscale-job`), and the
   database and files are separate from the services. Rebuilding would take about
   half an hour, but only when Google Cloud is allowed again.
 - **Next:** the owner decides the platform (09-NO-CLOUD-PLAN.md).
@@ -137,7 +137,7 @@ Found on 27 Sep by running the same cars through both engines.
 | D4 | App Check | Key registered on turboflow-test, nothing sends or enforces it. The add-in cannot produce tokens, so enforcement must exempt it. |
 | D5 | Restrict the Firebase web API keys to the site's addresses | **UNVERIFIED** from here. |
 | D6 | The old `cfd_web_frontend` GitHub repository had a workflow that deploys to production on every pull request | Reported 12 Sep. Must be deleted before a switch or it can overwrite the new site. Current state **UNVERIFIED**. |
-| D7 | The old PayPal secret and Discord webhook (from `cfd_web_frontend/functions/.env`) now live in `env/secrets/production.env` at the repo root, git-ignored | Delete after the old app is retired; rotate if the folder was ever shared. |
+| D7 | The old PayPal secret and Discord webhook live in `env/secrets/production.env` at the repo root, git-ignored (the `cfd_web_frontend/` folder was deleted 22 Oct 2026) | Rotate if the folder was ever shared; delete the copy in the private backup repo once the old app is retired. |
 | D8 | The production backup holds live secrets | Keep private; never upload, attach or commit. |
 | D9 | The brand kit published as a private claude.ai artifact on 27 Sep could not be deleted from that session | The owner can delete it from claude.ai or `/artifacts` in a terminal. |
 | D10 | `hi@hi.com` on turboflow-test is disabled, not deleted | It owns old test groups. |

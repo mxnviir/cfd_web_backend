@@ -194,37 +194,13 @@ Full behaviour of each function is in 05-BACKEND-REFERENCE.md.
 
 ## `services/` (Python, run on Cloud Run)
 
-### `services/tessellate/` (the geometry service)
+### `services/tessellate/` — deleted
 
-| File | What it is |
-|---|---|
-| `main.py` (4,008) | Flask app on gunicorn (1 worker, 2 threads, 600 s timeout). Auth: a user's Firebase ID token, or a Google token from a trusted service account plus `on_behalf_of`. Every path is checked against the owner's prefix (`owned`). Has its own rate limits in the shared `rate` collection. |
-| `requirements.txt` | **cadquery 2.8.0** (the OpenCascade kernel; 2.5.2 had the wheels-only cut bug), trimesh 4.5.3, flask, gunicorn, firebase-admin. Versions are load-bearing. |
-| `Dockerfile` | python:3.11-slim, OpenGL libraries, an import check at build time, runs as uid 10001 (not root). |
-
-Endpoints:
-
-| Endpoint | What it does |
-|---|---|
-| `/health` | Liveness. |
-| `/inspect` | Raw CAD (STEP, IGES, STL) in; turns it to face the wind, works out the unit, triangulates face by face, finds wheels, measures frontal area and slivers, matches STEP entity ids; writes `v{n}/` model, face list, solids, thumbnail, STEP. STL goes through `inspect_mesh` (no OCC). |
-| `/prepare` | Car in; mirror plane, tunnel sizing (floor 0.1 mm under the wheels), the cut (one pass, then fused bodies, then body by body, with volume guards and several mirror-wall offsets), validity and void checks, STEP export, face labels, wheels per face, adjacency; writes the tunnel version. |
-| `/measure` | Exact distance between two B-rep faces. |
-| `/transform` | Replay translate, scale, rotate, mirror on a STEP and write a new version (built for CAD edit; no UI uses it now). |
-| `/tessellate` | The older STEP to GLB preview, now face by face. |
-
-Main helpers, in order of the file: request timing (`stage`), rate limits,
-storage I/O, caller identity (`caller_uid`, `owned`), STEP import with a cache,
-STL and IGES readers, STEP entity matching (`parse_step_faces`,
-`match_step_ids`), `write_step` (flat, in metres), `ensure_meshed` (triangulate
-once), `exact_bbox` (AddOptimal), `detect_scale`, face statistics from
-triangles, `sliver_report`, `survey_faces`, `car_axis` and `orient_to_wind`,
-wheel finding (`wheel_radii`, `split_axle`, `name_wheels`, `find_wheels`),
-`cut_parallel`, `cut_car_out`, `fuse_bodies`, `faulty_faces`, `describe_spot`,
-`symmetry_plane`, `label_faces`, `group_wheel_faces`, `build_domain`,
-`classify_faces` (labels from the STEP text), `write_labels_csv`, `apply_ops`,
-`face_adjacency`, `render_thumb` (numpy rasteriser, no image library),
-`frontal_area` (rasterised shadow), `to_glb_by_face`.
+The geometry service (`turboflow-tessellate` on Cloud Run) was removed on
+22 Oct 2026. Everything it did — `/inspect`, `/prepare`, `/measure` — now runs
+in the visitor's browser (`src/workbench/geometry/`, occt-wasm in Web Workers);
+nothing calls a cloud geometry service any more. Its source stays in git
+history and in the production backup.
 
 ### `services/simscale-job/` (the SimScale worker)
 
@@ -258,8 +234,8 @@ project. A dialog with account, tunnel, wheels, mesh, iterations and a live cost
 card; on Run it builds the tunnel in Fusion, cuts the car, labels faces from the
 exported STEP text, exchanges the token, checks credits and the unlimited pass
 (fixed on 27 Sep to read `unlimited_until`), uploads to `jobs/{id}/`, and writes
-the job document. A copy stamped for turboflow-test is in
-`cfd_web_backend/fusion_addin_test/TurboFlow_CFD/TurboFlow_CFD.py`.
+the job document. `npm run build` stamps a fresh copy for whichever
+project the build is for.
 
 ## `scripts/` (build, audits, production tools)
 
@@ -365,8 +341,6 @@ check the spec).
 |---|---|
 | `DESIGN_RULES.md` | The design rules (hard bans, signals, what to do instead, launch gates, review checklist). Source of truth for how every page looks. |
 | `backups/turboflow-7b3ca-2026-09-24/` | Production backup. **Holds live secrets.** |
-| `cfd_web_frontend/` | The original app's source as it was in August. Not git. Its `functions/.env` was moved to `env/secrets/production.env` at the repo root. |
-| `fusion_addin_test/` | The add-in stamped for turboflow-test. |
 | `.claude/launch.json` | Preview configs: `turboflow-vite` (5173), `turboflow-emulators` (UI on 4000), `tunnel-cut` (5190). |
 | `design_audit.json` | Output of the 9 Sep scan. Stale. |
 | `firebase-debug.log`, `firestore-debug.log` | Emulator logs. |

@@ -48,7 +48,7 @@ Words used across the code, the docs and the chats.
 | **Draft** | A panel's unsaved edits; saved only by the tick or Enter. |
 | **OpenFOAM case** | What SimScale returns as a run's full result: the solver's own files. Converted for the viewer and offered as a ParaView download. |
 | **Event log** | SimScale's log of an operation; the only place a failure's reason appears. |
-| **Geometry service / tessellate** | The Python OpenCascade service (`services/tessellate`, `turboflow-tessellate` on Cloud Run). |
+| **Geometry service / tessellate** | The old app's Python OpenCascade service on Cloud Run. Deleted 22 Oct 2026; geometry now runs in the browser (`src/workbench/geometry/`). |
 | **Worker** | The Python SimScale program (`services/simscale-job`), one Cloud Run job execution per run. |
 | **Warm instance / min instances** | Keeping a Cloud Run service running while idle to avoid start-up delay. Costs money all the time. |
 | **Emulators** | Firebase's local copies of Auth, Firestore, Functions and Storage, project `demo-turboflow`. |
