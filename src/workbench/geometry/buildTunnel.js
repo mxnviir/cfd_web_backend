@@ -15,7 +15,7 @@
 // bytes and writes the version and simulation. If anything fails after the
 // intent exists, failDomainBuild records it, so the tree never sits on
 // "preparing" forever.
-import { db, functions, storage } from "../../lib/firebase";
+import { db, functions, storage } from "../../lib/backend";
 import { rawVersion } from "../../lib/geometry";
 
 /** The five artefacts, in the order they are uploaded. */

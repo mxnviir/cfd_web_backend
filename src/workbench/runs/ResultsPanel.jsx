@@ -13,7 +13,8 @@
 import React, { useEffect, useState } from "react";
 import { Note } from "../panels/fields";
 import { Icon } from "../icons";
-import { storage } from "../../lib/firebase";
+import { storage, auth } from "../../lib/backend";
+import { finishRun } from "../results/finish";
 import { Summary } from "./RunPanel";
 
 const KB = (n) => (n == null ? null : `${Math.round(n / 1024).toLocaleString()} KB`);
@@ -98,7 +99,7 @@ export function FieldLegend({ field }) {
 
 export default function ResultsPanel({ run, engine, onField }) {
   // The worker writes results_glb_path and results_fields; the Firestore shim
-  // in lib/firebase.js converts top-level keys to camelCase on the way in, so
+  // in lib/backend.js converts top-level keys to camelCase on the way in, so
   // what arrives here is resultsGlbPath and resultsFields. Two separate
   // mistakes were made on this one line: first reading a `results` object that
   // nothing has ever written, then reading the worker's snake_case spelling
@@ -116,6 +117,19 @@ export default function ResultsPanel({ run, engine, onField }) {
 
   // Put the model back when this panel closes or moves to another run.
   useEffect(() => () => { engine?.hideField(); onField?.(null); }, [engine, run?.id]);
+
+  // FINISH. A run arrives with SimScale's case and no viewer files; the
+  // owner's first look converts it here, once, and the row updates itself
+  // (resultsGlbPath appears) when it is filed. A collaborator waits for that.
+  const isOwner = !!run && auth.currentUser?.uid === run.userId;
+  const needsFinish = run?.status === "finished" && !!casePath && !glbPath;
+  const [finishing, setFinishing] = useState(null);
+  useEffect(() => {
+    if (!needsFinish || !isOwner || finishing) return;
+    setFinishing({ fraction: 0, text: "Preparing the 3D results" });
+    finishRun(run, (fraction, text) => setFinishing({ fraction, text }))
+      .catch((err) => setFinishing({ error: err?.message || String(err) }));
+  }, [needsFinish, isOwner, run?.id, finishing === null]);
 
   const colourBy = async (name) => {
     setShown(name);
@@ -157,6 +171,29 @@ export default function ResultsPanel({ run, engine, onField }) {
     <div ref={root}>
       <Summary summary={summary} />
 
+      {needsFinish ? (
+        isOwner ? (
+          <div className="wb-field-pick" role="status">
+            {finishing?.error ? (
+              <p className="wb-perror" role="alert">
+                The 3D results could not be prepared: {finishing.error}
+                {" "}<button type="button" className="wb-btn" onClick={() => setFinishing(null)}>Try again</button>
+              </p>
+            ) : (
+              <span className="wb-muted">
+                {finishing?.text ?? "Preparing the 3D results"} {Math.round((finishing?.fraction ?? 0) * 100)}%
+                {" "}(once, the first time this run is opened)
+              </span>
+            )}
+          </div>
+        ) : (
+          <Note>
+            The 3D results are prepared the first time the run's owner opens
+            it. The forces above are ready now.
+          </Note>
+        )
+      ) : null}
+
       {glbPath && names.length ? (
         <div className="wb-field-pick">
           <label htmlFor="wb-colour-by">Colour the car by</label>
@@ -184,7 +221,7 @@ export default function ResultsPanel({ run, engine, onField }) {
         ))}
       </ul>
 
-      {!names.length ? (
+      {!names.length && !needsFinish ? (
         <Note>
           This run has no surface results. That happens when the solver stopped
           before its first write, or when the run finished before TurboFlow could

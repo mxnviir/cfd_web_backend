@@ -12,7 +12,7 @@
 // the intent is marked consumed; ingestCar verifies the bytes and writes the
 // version. If anything fails after the intent exists, failCarImport records
 // it, so the tree never sits on "preparing" forever.
-import { db, functions, storage } from "../../lib/firebase";
+import { db, functions, storage } from "../../lib/backend";
 
 /** The artefacts in upload order; the thumbnail at the end because it is
  *  optional - Node has no canvas, old browsers may not either. */

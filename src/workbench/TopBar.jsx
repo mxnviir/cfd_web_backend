@@ -7,7 +7,7 @@
 // out, and a button for a thing that does not exist is worse than no button.
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/backend";
 
 /**
  * What is and is not stored.

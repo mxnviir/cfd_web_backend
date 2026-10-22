@@ -7,8 +7,8 @@
 //
 // tests/test_pricing.mjs runs both against the same inputs and fails if any
 // answer differs. That test is the reason this file is allowed to exist as a
-// copy rather than an import: functions/ is TypeScript compiled for Node, and
-// pulling it into the browser bundle would drag firebase-admin with it.
+// copy rather than an import: the server's copy lives with the edge functions
+// (supabase/functions/_shared/logic/pricing.ts), which the site does not bundle.
 
 /**
  * Simmetrix fineness per refinement level.

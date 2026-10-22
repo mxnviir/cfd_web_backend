@@ -1,28 +1,32 @@
-// Everything the Workbench reads from Firestore, in one place.
+// Everything the Workbench reads from the database, in one place.
 //
 // One listener per collection, started once when the group opens and stopped
 // when it closes. The spec is explicit about this in 5.7: job status comes
 // from a listener on `runs` and the browser never polls. The same applies to
 // the rest of it, and for a reason beyond tidiness. A poll shows a stale tree
 // for as long as its interval; a listener shows the run going from queued to
-// running the moment the worker says so, which is the difference between the
+// running the moment the pipeline says so, which is the difference between the
 // Workbench feeling alive and feeling like a page you have to refresh.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { db, auth, isLocal } from "../lib/firebase";
+import { db, auth, isLocal, functions } from "../lib/backend";
 
-/** Who is signed in, or null. `undefined` while Firebase is still deciding. */
+/** Who is signed in, or null. `undefined` while Auth is still deciding. */
 export function useUser() {
   const [user, setUser] = useState(undefined);
   useEffect(() => {
     let stopped = false;
     const off = auth.onAuthStateChanged(async (u) => {
-      // Local testing only: a localhost page talks to the emulators, and the
-      // Workbench bounces to sign-in without a user. The auth emulator takes
-      // anonymous sign-in with no project setup, so testing does not have to
-      // click through Google. Non-localhost keeps the real sign-in flow.
+      // Local development only: the Workbench bounces to sign-in without a
+      // user, so a localhost page signs in anonymously instead of clicking
+      // through Google, and makes itself an account (a development project
+      // allows that for an anonymous session; production allows Google
+      // only). Non-localhost keeps the real sign-in flow.
       if (!u && isLocal) {
         try { await auth.signInAnonymously(); } catch { if (!stopped) setUser(null); }
         return;
+      }
+      if (u?.isAnonymous && isLocal) {
+        await functions.httpsCallable("ensureAccount")({}).catch(() => undefined);
       }
       if (!stopped) setUser(u);
     });
@@ -34,16 +38,11 @@ export function useUser() {
 /**
  * One document, live.
  *
- * A read of a document that is not there comes back as permission-denied, not
- * as an empty snapshot. That is Firestore working as intended: with no
- * document, `resource` is null, and a rule that reads resource.data cannot be
- * satisfied. Loosening the rule to allow reads of missing documents would
- * turn "denied" into "does not exist" and let anyone probe which group ids
- * are real, so the rule stays strict and the distinction is made here.
- *
- * To this user the two cases are the same thing anyway: a group they cannot
- * open. Only a genuine failure, such as the network being down, is reported
- * as an error.
+ * A row this user may not read and a row that is not there look the same:
+ * RLS filters it out and the read comes back empty, so nobody can probe
+ * which group ids are real. To this user the two are the same thing anyway:
+ * a group they cannot open. Only a genuine failure, such as the network
+ * being down, is reported as an error.
  */
 const GONE = new Set(["permission-denied", "not-found"]);
 

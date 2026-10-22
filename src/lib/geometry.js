@@ -3,7 +3,7 @@
 /**
  * The version the viewer should be drawing, as the geometry service wrote it.
  *
- * Snake case on purpose. src/lib/firebase.js converts top level keys and
+ * Snake case on purpose. src/lib/backend.js converts top level keys and
  * deliberately leaves nested maps alone, because the shape inside one belongs
  * to whoever wrote it. `versions` is written by processGeometry and is one of
  * those, so `glb_path` stays `glb_path` here. Reading `glbPath` gets

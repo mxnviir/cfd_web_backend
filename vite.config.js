@@ -1,12 +1,10 @@
 // The Workbench's build.
 //
-// The site itself is the classic static app in public/ - index.html with
-// React and Firebase from CDNs, served as-is - and only the Workbench is a
-// Vite entry: three.js, the occt-wasm geometry engine and the Firebase
-// client are bundled, hashed and cached for it, and nothing else pays for
-// them.
+// Twelve pages of the classic site and the Workbench, each its own entry:
+// React, the Supabase client, three.js and the occt-wasm geometry engine are
+// bundled, hashed and cached, and a page pays only for what it loads.
 //
-// The one rewrite firebase.json declares, for the dev server too.
+// The one rewrite the host must make (docs/CUTOVER.md), for the dev server too.
 //
 // /workbench/{projectId} is a real address the user can bookmark and reload,
 // and hosting turns it into /workbench.html. Without the same rule here, dev
@@ -20,7 +18,7 @@ import { resolve } from "node:path";
 const workbenchHtml = resolve(__dirname, "workbench.html");
 
 // Every page of the classic site: the home page plus one HTML per view, all
-// sharing the one entry in src/entries/site.jsx. The bundle (React, Firebase,
+// sharing the one entry in src/entries/site.jsx. The bundle (React, Supabase,
 // the app) is downloaded once and cached; each view is its own address that
 // opens directly on what it is.
 const sitePages = ["index", "dash", "simulations", "lapcalc", "billing", "docs",
@@ -72,12 +70,12 @@ export default defineConfig({
       ]),
       output: {
         // One shared vendor chunk rather than a copy of React per page. Only
-        // the Workbench is bundled, but this keeps React, Firebase and three
+        // the Workbench is bundled, but this keeps React, Supabase and three
         // in files the browser can cache separately from the app code.
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           if (id.includes("react")) return "vendor-react";
-          if (id.includes("firebase") || id.includes("@firebase")) return "vendor-firebase";
+          if (id.includes("@supabase")) return "vendor-supabase";
           if (id.includes("recharts") || id.includes("d3")) return "vendor-charts";
           // three.js is 600 kB and only the Workbench loads it.
           if (id.includes("three")) return "vendor-three";

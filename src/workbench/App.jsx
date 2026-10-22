@@ -38,7 +38,7 @@ import Resizer from "./Resizer";
 import { Icon } from "./icons";
 import { useRoute } from "./route";
 import { useUser, useDoc, useGroupCollection, useSaver, useTabLock } from "./data";
-import { db, storage, functions } from "../lib/firebase";
+import { db, storage, functions } from "../lib/backend";
 import { currentVersion, rawVersion } from "../lib/geometry";
 import { prepareDomainInBrowser } from "./geometry/buildTunnel";
 import { prepareCarInBrowser } from "./geometry/buildCar";

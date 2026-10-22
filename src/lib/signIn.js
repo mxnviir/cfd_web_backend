@@ -11,7 +11,7 @@
 // dashboard renders without the Shell, so its signed-out screen had no way to
 // reach any of it: it said "Sign in to see your projects" next to a link to
 // the home page, and the only way to sign in was to go there and come back.
-import { auth, GoogleAuthProvider } from "./firebase";
+import { auth, GoogleAuthProvider } from "./backend";
 
 /**
  * Returns when the user is signed in, or when they closed the popup.

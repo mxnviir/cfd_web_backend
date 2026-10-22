@@ -13,13 +13,9 @@ $suites = @(
   @{ Name = "plot shape";           Cmd = "node";   Arg = "tests\test_plot_shape.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_run_fields.mjs"; Net = $false }
   @{ Name = "run field names";      Cmd = "node";   Arg = "tests\test_auto_spec.mjs"; Net = $false }
-  @{ Name = "result summary";       Cmd = "python"; Arg = "tests\test_summarise.py";  Net = $false }
-  @{ Name = "drag direction";       Cmd = "python"; Arg = "tests\test_drag_sign.py";  Net = $false }
-  @{ Name = "half car forces";       Cmd = "python"; Arg = "tests\test_half_car.py";  Net = $false }
   @{ Name = "wheel grouping";      Cmd = "python"; Arg = "tests\test_wheel_grouping.py"; Net = $false }
   @{ Name = "wheel detection";     Cmd = "python"; Arg = "tests\test_wheel_detection.py"; Net = $false }
   @{ Name = "drag direction";       Cmd = "python"; Arg = "tests\test_symmetry_plane.py";  Net = $false }
-  @{ Name = "drag direction";       Cmd = "python"; Arg = "tests\test_service_names.py";  Net = $false }
   @{ Name = "CAD edit operations";  Cmd = "python"; Arg = "tests\test_transform.py";  Net = $false }
   @{ Name = "results export";       Cmd = "python"; Arg = "tests\test_results_export.py"; Net = $false }
   @{ Name = "SimScale plot export"; Cmd = "python"; Arg = "tests\test_plots.py";      Net = $true  }

@@ -3,26 +3,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:functions": "npm --prefix functions run build",
-    "emulate": "node scripts/sync-env.mjs demo-turboflow && firebase emulators:start --project demo-turboflow",
-    "test": "npm run build:functions && node tests/test_pricing.mjs && firebase emulators:exec --project demo-turboflow --only auth,firestore,functions,storage \"node tests/test_security.mjs\"",
-    "dev": "node scripts/sync-env.mjs turboflow-test && vite",
-    "build": "node scripts/sync-env.mjs turboflow-test && vite build && node scripts/build-addin.mjs",
-    "deploy": "node scripts/deploy.mjs",
+    "dev": "node scripts/sync-env.mjs dev && vite",
+    "build": "node scripts/sync-env.mjs dev && vite build",
+    "build:prod": "node scripts/sync-env.mjs prod && vite build",
     "preview": "vite preview",
+    "test": "sh tests/run-all.sh",
+    "test:money": "node supabase/tests/run.mjs",
+    "test:pipeline": "node supabase/tests/pipeline.mjs",
+    "test:lock": "node supabase/tests/lock.mjs",
     "test:unit": "node tests/test_pricing.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.5",
-    "firebase": "^10.14.1",
-    "firebase-admin": "^13.6.0",
     "postcss": "^8.5.28",
     "postgres": "^3.4.5",
     "tailwindcss": "^3.4.17",
-    "vite": "^6.4.3"
+    "vite": "^6.4.3",
+    "zod": "^3.24.1"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "occt-wasm": "5.3.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

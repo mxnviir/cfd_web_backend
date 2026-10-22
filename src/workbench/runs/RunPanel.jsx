@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import Plot from "./Plot";
-import { storage } from "../../lib/firebase";
+import { storage } from "../../lib/backend";
 import {
   HEADLINE, SECONDARY, MIRRORED,
   formatQuantity, unitOf, labelOf, compareQuantity, describeChange,

@@ -14,7 +14,7 @@
 import React, { useRef, useState } from "react";
 import { Modal } from "../dashboard/dialogs";
 import { Icon } from "./icons";
-import { functions, storage } from "../lib/firebase";
+import { functions, storage } from "../lib/backend";
 import { prepareCarInBrowser } from "./geometry/buildCar";
 
 /**
